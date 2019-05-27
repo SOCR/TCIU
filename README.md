@@ -10,7 +10,7 @@ Table of contents
 <!--ts-->
    * [Table of contents](#table-of-contents)
    * [Overview](#overview)
-   * [R Code](#r_code)
+   * [R Code](#r-code)
    * [Team](#team)
    * [Acknowledgments](#acknowledgments)
    * [References](#references)
