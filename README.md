@@ -25,7 +25,7 @@ The [SOCR](http://socr.umich.edu/) Data Science Fundamentals project explores ne
 R Code
 ======
 
-The examples, demonstrations and simulations are designed, built, implemented and validated in the [R environment](https://www.r-project.org).
+The examples, demonstrations and simulations are designed, built, implemented and validated in the [R environment](https://www.r-project.org). See teh [code folder](https://github.com/SOCR/TCIU/tree/master/code).
 
 Team
 ====
