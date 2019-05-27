@@ -20,7 +20,7 @@ Table of contents
 Overview
 ========
 
-The [SOCR](http://socr.umich.edu/) Data Science Fundamentals project explores new theoretical representation and analytical strategies to understand large and complex data, time comlexity and inferential uncertainty. It utilizes information measures, entropy KL divergence, PDEs, Dirac’s bra-ket operators. This fundamentals of data science research project will explore time-complexity and inferential uncertainty in modeling, analysis and interpretation of large, heterogeneous, multi-source, multi-scale, incomplete, incongruent, and longitudinal data. 
+The [SOCR Data Science Fundamentals project explores new theoretical representation and analytical strategies to understand large and complex data, time comlexity and inferential uncertainty](http://www.socr.umich.edu/TCIU/). It utilizes information measures, entropy KL divergence, PDEs, Dirac’s bra-ket operators. This fundamentals of data science research project will explore time-complexity and inferential uncertainty in modeling, analysis and interpretation of large, heterogeneous, multi-source, multi-scale, incomplete, incongruent, and longitudinal data. 
 
 R Code
 ======
