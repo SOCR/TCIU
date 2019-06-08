@@ -30,7 +30,7 @@ The examples, demonstrations and simulations are designed, built, implemented an
 Team
 ====
 
-[Ivo D. Dinov](http://umich.edu/~dinov), Milen V. Velev, Yongkai Qiu and Zhe Yin.
+[SOCR Team](http://www.socr.umich.edu/people/) including [Ivo D. Dinov](http://umich.edu/~dinov), Milen V. Velev, Yongkai Qiu, Zhe Yin, and others.
 
 Acknowledgments
 ===============
