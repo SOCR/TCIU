@@ -61,7 +61,7 @@ Vignettes
 =========
 The documentation and vignettes, as well as the source and binary files can be found on  [CRAN](https://cran.r-project.org/web/packages/TSplotly/index.html). 
 
-The necessary packages to run the CBDA algortihm are installed automatically at installation.
+The necessary packages to use the TSplotly package are installed automatically at installation.
 
 Authors
 ===============
