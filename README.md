@@ -20,17 +20,17 @@ Table of contents
 Overview
 ========
 
-The [SOCR Data Science Fundamentals project explores new theoretical representation and analytical strategies to understand large and complex data, time comlexity and inferential uncertainty](http://www.socr.umich.edu/TCIU/). It utilizes information measures, entropy KL divergence, PDEs, Dirac’s bra-ket operators. This fundamentals of data science research project will explore time-complexity and inferential uncertainty in modeling, analysis and interpretation of large, heterogeneous, multi-source, multi-scale, incomplete, incongruent, and longitudinal data. 
+The [SOCR Data Science Fundamentals project explores new theoretical representation and analytical strategies to understand large and complex data, time complexity and inferential uncertainty](http://www.socr.umich.edu/TCIU/). It utilizes information measures, entropy KL divergence, PDEs, Dirac’s bra-ket operators ($$\langle ,  \rangle $$). This fundamentals of data science research project will explore time-complexity and inferential uncertainty in modeling, analysis and interpretation of large, heterogeneous, multi-source, multi-scale, incomplete, incongruent, and longitudinal data. 
 
 R Code
 ======
 
-The examples, demonstrations and simulations are designed, built, implemented and validated in the [R environment](https://www.r-project.org). See teh [code folder](https://github.com/SOCR/TCIU/tree/master/code).
+The examples, demonstrations and simulations are designed, built, implemented and validated in the [R environment](https://www.r-project.org). See the [code folder](https://github.com/SOCR/TCIU/tree/master/code).
 
 Team
 ====
 
-[SOCR Team](http://www.socr.umich.edu/people/) including [Ivo D. Dinov](http://umich.edu/~dinov), Milen V. Velev, Yongkai Qiu, Zhe Yin, and others.
+[SOCR Team](http://www.socr.umich.edu/people/) including [Ivo D. Dinov](http://umich.edu/~dinov), [Milen V. Velev]( http://www.socr.umich.edu/people/Milen_Velev.html), [Yongkai Qiu]( http://www.socr.umich.edu/people/Yongkai_Qiu.html), [Zhe Yin]( http://www.socr.umich.edu/people/Zhe_Yin.html), and others.
 
 Acknowledgments
 ===============
@@ -40,4 +40,4 @@ This work is supported in part by NIH grants [P20 NR015331](www.socr.umich.edu/C
 References
 ==========
 
-* pending ...
+* [TCIU Website](http://tciu.predictive.space/).
