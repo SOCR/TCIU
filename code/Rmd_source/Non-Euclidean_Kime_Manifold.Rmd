@@ -1,0 +1,66 @@
+---
+title: "Non-Euclidean Kime Manifold"
+subtitle: "[Back To Contents](Contents.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: SOCR_header.html
+      after_body: SOCR_footer_tracker.html
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Non-Euclidean Kime Manifold
+
+So far, we considered spacekime as 5D Euclidean space where the 2D kime is a flat space. Does it make sense to generalize kime to non-Euclidean manifold and  what is the rationale and meaning of a curved kime manifold?
+
+We saw earlier the geometric representation of the flat spacekime using conical shapes. Let's start with some visualization of the non-Euclidean 2D kime manifold.
+
+```{r message=FALSE,warning=FALSE}
+library(plotly)
+library(ggplot2)
+```
+```{r}
+
+# Define a vase-generating funciton (2D), which will be rotated to form curved kime manifold
+kime.manifold <- data.frame( s=seq(0, 1.3, length.out = 200) )
+kime.manifold$theta <- seq(0, 2*pi, length.out = 200)
+g <- function (t) { sqrt(t^3-2.09*t^2+1.097*t) }
+h <- function (t) { t }
+
+# rendering (u==s, v==theta) parametric surfaces requires x,y,z arguments to be 2D arrays
+# In out case, the three coordinates have to be 200*200 parameterized tensors/arrays
+x2 <- g(kime.manifold$s) %o% cos(kime.manifold$theta)
+y2 <- g(kime.manifold$s) %o% sin(kime.manifold$theta)
+z2 <- h(kime.manifold$s) %o% rep(1, 200)
+  
+p <- plot_ly(x=~x2, y=~y2, z=~z2,   # draw vertical plane 1
+        #colors = c("yellow", "white"),
+        type="surface", hoverinfo="none", opacity=0.5, 
+        showlegend=FALSE, showscale = FALSE,
+        contours = list(
+      x = list(highlight = FALSE),
+      y = list(highlight = FALSE),
+      z = list( highlight = TRUE, highlightcolor = "blue") )) %>%
+  # add_segments(x = ~x, xend = ~x, y = ~ymin, yend = ~ymax, z = ~zmin, yend = ~zmax) %>%
+  #add_trace(x=~x2, y=~y2, z=~z2,    # draw vertical plane 2 (orthogonal to 1)
+  #      colors = c("blue", "yellow"),type="surface", 
+  #      hoverinfo="none", opacity=0.7, 
+  #      legendshow=FALSE, showscale = FALSE) %>%
+  layout(title = "Curved Kime Manifold")
+p
+```

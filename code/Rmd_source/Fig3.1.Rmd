@@ -1,0 +1,223 @@
+---
+title: "Figure 3.1 [Figure 3.3](Fig3.3.html)"
+subtitle: "[Back To Index](index.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warings = FALSE)
+```
+
+
+
+
+# Introduction 
+
+```{r kime, message=F, warning=F}
+
+# Get this figure: fig <- get_figure("MattSundquist", 4064)
+# Get this figure's data: data <- get_figure("MattSundquist", 4064)$data
+# Add data to this figure: p <- add_trace(p, x=c(4, 5), y=c(4, 5), kwargs=list(filename="Klein bottle", fileopt="extend"))
+# Get y data of first trace: y1 <- get_figure("MattSundquist", 4064)$data[[1]]$y
+
+library(plotly)
+library(dplyr)
+```
+
+# 1D Waves and 2D Waves
+
+Waves of constant wavelength propagate maintaining its shape but shifting its location like in the image below. However, this oversimplified representation does not work well for computing, as adding  wave amplitudes does not work as expected. It simply shifts the wave amplitude up and doesn't move the wave in the direction of motion. Similar problem arises with wave multiplication by a constant. Wave multiplication by a number increases the height of the peaks and valleys without moving them in space.
+
+```{r message=F, warning=F}
+# install.packages("deSolve")
+times <- seq(from = 0, to = 40, by = 0.01)
+y1 <- sin(times/2)
+y2 <- sin(times/2+1)
+y3 <- sin(times/2+2)
+
+png("../Figures/Fig3.1A.png",width = 1080,height = 1080, res = 100)
+plot(times, y1, type="l", lwd=2, col="lightblue")
+lines(times, 0*times, type="l", lwd=2, col="black")
+lines(times, y2, type="l", lwd=2, col="darkblue")
+lines(times, y3, type="l", lwd=2, col="blue")
+dev.off()
+```
+
+These problems are solved by an alternative wave representation where the wave has a complex amplitude, and complex multiplication by a number works well. 
+
+The wave *phase* represents the direction of the wave amplitude in complex plane. Differences of phases yield interference phenomena. The interference of two waves of amplitude $i$ will produce an increased amplitude of $2i=i + i$. When the second wave is of amplitude $-i$, then their interfere destroys the aggregate wave, i.e., produces a zero amplitude wave $i - i = 0$.
+
+Let's start with a wave of  constant wavelength that represents a particle of definite momentum. For simplicity, we'll consider just a one space dimension representing the horizontal axis, i.e.,  the spatial extension of the wave. The remaining two dimensions will represent the phase of the wave complex amplitude. The vertical axis represents the imaginary $+i$ and $-i$ directions, and depth represents the real $+1$ and $-1$ directions. In this representation, the *wave magnitude* is constant, however, the 2D phase determines the uniform distance advancement in space. 
+
+As the wave propagates, the amplitude cycles through all directions in the 2D complex plane perpendicular to the 1D space dimension (x-axis). The result is a wave function represented by a helical ("corkscrew") shape.  In the previous example, the illusion that the wave amplitude periodically vanishes is just an artifact of an incomplete representation of the wave. 
+
+The Complex wave representation clarifies this illusion arising by slicing through the 3D "corkscrew" wave shape and showing just the 1D values in the space of complex amplitudes.
+
+This complex wave representation also addresses the above multiplication problem. Multiplying the 3D wave curve by $i$ will relocate the amplitudes yielding spatial propagation of the wave, which explains the basic rule of time evolution of quantum theory. The effect of multiplying the wave amplitude by $i$ at each point is effectively a rotation of the amplitude by one quarter turn around the space of values. Thus, the combination of these point-wise effects results in the wave advancing forward in space (propagation).
+
+```{r message=F, warning=F}
+t <- seq(-6*pi, 6*pi, length.out=400)
+r <- 3
+x <- r * cos(t)
+y <- r * sin(t)
+z <- 2*t
+c <- t%%(2*pi)
+  
+data1 <- data.frame(x, y, z)
+
+p <- plot_ly(data1, x = ~x, y = ~y, z = ~z, type = 'scatter3d', mode = 'lines', showlegend = F,
+        line = list(width = 12, color = ~c, colorscale = list(c(0,'red'), c(1,'blue')))) %>%
+  # trace the z-axis
+  add_trace(data1, x = 0, y =0, z = ~z, type="scatter3d", mode="lines", 
+              line = list(width = 10, color = ~c, colorscale = list(c(0,'red'), c(1,'blue'))),
+            name="Z", hoverinfo="none") %>%
+  # add projection on plane x=-3
+  add_trace(data1, x = -3, y = ~y, z = ~z, type="scatter3d", mode="lines", 
+              line = list(width = 2, dash="solid", color = ~c, 
+                          colorscale = list(c(0,'gray'), c(1,'black'))),
+            name="Z", hoverinfo="none") %>%
+  # add projection on plane y=-3
+  add_trace(data1, x = ~x, y = -3, z = ~z, type="scatter3d", mode="lines", 
+              line = list(width = 2, dash="solid", color = ~c, 
+                          colorscale = list(c(0,'gray'), c(1,'black'))),
+            name="Z", hoverinfo="none") %>%
+  # add a z-line at x=-3,y=0
+  add_trace(data1, x = -3, y = 0, z = ~z, type="scatter3d", mode="lines", 
+              line = list(width = 5, dash="solid", color = "gray"),
+            name="Z", hoverinfo="none") %>%
+  # add a z-line at x=0,y=-3
+  add_trace(data1, x = 0, y = -3, z = ~z, type="scatter3d", mode="lines", 
+              line = list(width = 5, dash="solid", color = "gray"),
+            name="Z", hoverinfo="none") %>%
+  # add a x-line at y=0, z=-40
+  add_trace(data1, x = ~x, y = 0, z = -40, type="scatter3d", mode="lines", 
+              line = list(width = 15, dash="solid", color = "gray"),
+            name="Z", hoverinfo="none")
+  # add a few annotations/arrows
+p
+```
+
+Recall that for a single particle, the Hamiltonian  operator corresponding to the total energy of the system is defined by:
+
+$$\hat {H}={\underbrace{\frac{\hat {p}^{2}}{2m}}_{\text{particle kinetic energy}}}+
+{\underbrace{\frac {1}{2} k \hat {x}^2}_{\text{particle potential energy}}}=
+{\frac {{\hat {p}}^{2}}{2m}}+{\frac {1}{2}}m\omega ^{2}{\hat {x}}^{2} ,$$
+
+where $m$ is the particle mass, $k$ is the force constant, $w =\sqrt {\frac {k}{m}}$ is the *angular frequency* of the oscillator, $\hat {x}$ is the position operator (corresponding to the spatial location $x$), and $\hat {p}$ is the momentum operator (corresponding to the momentum), which is expressed by $\hat {p}= -i\hbar \frac{\partial}{\partial x}$. Then, the time-independent Schr?dinger equation can be expressed as:
+
+$$\hat {H}\left|\psi \right\rangle =E\left|\psi \right\rangle ,$$
+
+where the eigenvalue $E$ denotes a real number specifying a time-independent energy level and the wavefunction $\psi$ represents the solution corresponding to that level's energy eigenstate. 
+
+Another way of visualizing the propagation of a wavefunction over a 1D space in terms of its complex amplitude ($\psi =Ae^{i(kx-wt)}$), real and imaginary parts, where $t$ is time, $w = kc$, wave's angular frequency which equals $w=2\pi/T$, where $T$ is the period of the wave, the position $x$, and momentum $p$ are conjugate variables. The wavefunction magnitude represents the probability of finding the particle at a given point $x\in R^1$ is spread out like a waveform. There is no unique definite position of the particle. As the amplitude oscillates (increases and decreases), the result is a wave win an alternating amplitude. 
+
+$k$ is the wave's radian spatial frequency (angular wave number) measures how rapidly the disturbance changes over a given distance at a particular point in time, $k=2\pi/\lambda$, where $\lambda$ is the wavelength of the wave, and measured in radians per unit distance. Note that $(x,y,z)$, are not part of the equation because the wave's magnitude and phase are the same at every point.
+
+
+```{r message=F, warning=F}
+t <- seq(-6*pi, 6*pi, length.out=400)
+r <- 3
+x <- r * cos(t)
+y <- r * sin(t)
+z <- 2*t
+c <- t%%(2*pi)
+
+data1 <- data.frame(x, y, z)
+
+scene = list(camera = list(eye = list(x = -1.25, y = 1.25, z = 1.25)),
+             aspectmode = "manual", aspectratio = list(x=1, y=1, z=5))
+# define wave opacity as a parabola
+const <- 1/(z[400]^2)
+wave_opacity <- 0.3 -(0.7*const)*(z-z[1])*(z-z[400])
+plot(wave_opacity, type = "l")
+
+# bgcolor = toRGB("white", alpha = 0),
+#cols = sample(grDevices::colors()[grep('gr(a|e)y', grDevices::colors(), invert = T)], 400)
+#cols_func <- colorRampPalette(c("blue", "red")); cols <- cols_func(400)
+                         
+#plot_ly(data1, x = ~x, y = ~y, z = ~z, type = 'scatter3d', mode = 'lines', showlegend = F,
+#        line = list(width = 40, color = toRGB(cols, alpha = wave_opacity)))
+
+p <- 
+  plot_ly(data1, x = ~x, y = ~y, z = ~z, type = 'scatter3d', mode = 'lines', showlegend = F,
+          line = list(width = 40, color = ~c, colorscale = list(c(0,'red'), c(1,'blue')),
+                    alpha = wave_opacity)) %>%
+  # trace the z-axis
+  add_trace(data1, x = 0, y =0, z = ~z, type="scatter3d", mode="lines", 
+              line = list(width = 10, color = ~c, colorscale = list(c(0,'red'), c(1,'blue'))),
+            name="Z", hoverinfo="none") %>%
+  # add projection on plane x=-3
+  add_trace(data1, x = -3, y = ~y, z = ~z, type="scatter3d", mode="lines", 
+              line = list(width = 2, dash="solid", color = ~c, 
+                          colorscale = list(c(0,'gray'), c(1,'black'))),
+            name="Z", hoverinfo="none") %>%
+  # add projection on plane y=-3
+  add_trace(data1, x = ~x, y = -3, z = ~z, type="scatter3d", mode="lines", 
+              line = list(width = 2, dash="solid", color = ~c, 
+                          colorscale = list(c(0,'gray'), c(1,'black'))),
+            name="Z", hoverinfo="none") %>%
+  # add a z-line at x=-3,y=0
+  add_trace(data1, x = -3, y = 0, z = ~z, type="scatter3d", mode="lines", 
+              line = list(width = 5, dash="solid", color = "gray"),
+            name="Z", hoverinfo="none") %>%
+  # add a z-line at x=0,y=-3
+  add_trace(data1, x = 0, y = -3, z = ~z, type="scatter3d", mode="lines", 
+              line = list(width = 5, dash="solid", color = "gray"),
+            name="Z", hoverinfo="none") %>%
+  # add a x-line at y=0, z=-40
+  add_trace(data1, x = ~x, y = 0, z = -40, type="scatter3d", mode="lines", 
+              line = list(width = 15, dash="solid", color = "gray"),
+            name="Z", hoverinfo="none") %>%
+  layout(scene = scene)
+  # add a few annotations/arrows
+p
+```
+
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->

@@ -1,0 +1,1025 @@
+---
+title: "Figure 1.8, 1.9, 1.11 & 1.12"
+subtitle: "[Back To Index](index.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 5
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warings = FALSE)
+```
+
+# TCIU Kime ARIMAX on ED Econ Data
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(plot3D)
+library(scatterplot3d)
+library(plotly)
+library(forecast)
+library(ggplot2)
+library(reshape2)
+library(tidyr)
+library(TSplotly)
+
+load("../Rdata/Fig1.8_to_1.12.RData")
+```
+
+## Data Source Type
+
+```{r, eval=FALSE}
+MCSI_Data <- read.csv(unzip("~/UM_Michigan_Consumer_Sentiment_Index_Data.csv.zip"))	
+```
+
+
+```{r}
+dim(MCSI_Data)	
+# [1] 279242    107
+
+# extract features
+# ICS                INDEX OF CONSUMER SENTIMENT
+# ICC                INDEX OF CURRENT ECONOMIC CONDITIONS                
+# GOVT               GOVERNMENT ECONOMIC POLICY
+# DUR                DURABLES BUYING ATTITUDES 
+# HOM                HOME BUYING ATTITUDES
+# CAR                VEHICLE BUYING ATTITUDES
+# INCOME             TOTAL HOUSEHOLD INCOME - CURRENT DOLLARS
+# AGE                AGE OF RESPONDENT
+# EDUC               EDUCATION OF RESPONDENT
+
+
+DT::datatable(head(MCSI_Data,1000), fillContainer = TRUE)
+```
+
+
+
+```{r}
+MCSI_Data_short <- 
+  MCSI_Data[ , which(names(MCSI_Data) %in% 
+                       c("YYYYMM", "ICS", "ICC", "GOVT", "DUR",
+                         "HOM", "CAR", "INCOME", "AGE", "EDUC"))]
+dim(MCSI_Data_short)
+# [1] 279242      10
+# Compute the monthly avarages across all participants
+MCSI_Data_monthAvg <- aggregate(.~YYYYMM, data = MCSI_Data_short, mean)
+dim(MCSI_Data_monthAvg)
+# [1] 492  10
+# colnames(MCSI_Data_monthAvg)
+
+# convert YYYMM to Date
+MCSI_Data_monthAvg$YYYYMM <- 
+  as.Date(as.character(
+    as.POSIXct(paste0(as.character(MCSI_Data_monthAvg$YYYYMM),"01"), format = "%Y%m%d")))
+head(MCSI_Data_monthAvg$YYYYMM)
+# View(MCSI_Data_monthAvg)
+
+# plot all features on the same plot (across time/months)
+
+MCSI_Data_monthAvg_melt <- 
+  melt(MCSI_Data_monthAvg , id.vars = 'YYYYMM', variable.name = 'series')
+```
+
+## Figure 1.5
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+# plot on same grid, each series colored differently -- 
+# good if the series have same scale
+#ggplot(MCSI_Data_monthAvg_melt, aes(YYYYMM, value), log10="y") + 
+#  geom_line(aes(colour = series)) 
+# Exclude INCOME as its too large!
+ggplot(MCSI_Data_monthAvg_melt[MCSI_Data_monthAvg_melt$series!="INCOME", ], 
+       aes(YYYYMM, value)) + 
+    geom_line(aes(linetype=series, colour = series), size=2) +
+    geom_point(aes(shape=series, colour = series), size=0.3) +
+      # geom_line(aes(colour = series)) +
+    geom_smooth(aes(colour = series), se = TRUE) +
+    coord_trans(y="log10") +
+    xlab("Time (monthly)") + ylab("Index Values (log-scale)") +
+    # scale_x_date(labels = date_label("%m-%Y")) +
+    scale_x_date(date_breaks = "12 month", date_labels =  "%m-%Y")  +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          text = element_text(size=20))+
+    theme(legend.position="top")
+```
+
+Interactive plot here
+```{r}
+updatemenus <- list(
+  list(
+    xanchor="left",
+    yanchor="top",
+    active = -1,
+    type= 'buttons',
+    buttons = list(
+      list(
+        label = "ALL",
+        method = "update",
+        args = list(list(visible = c(TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE)),
+                    list(title = "All Indexes"))),
+      list(
+        label = "ICS",
+        method = "update",
+        args = list(list(visible = c(FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE)),
+                    list(title = "ICS"))),
+      list(
+        label = "ICC",
+        method = "update",
+        args = list(list(visible = c(FALSE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE)),
+                    list(title = "ICC"))),
+      list(
+        label = "GOVT",
+        method = "update",
+        args = list(list(visible = c(FALSE,FALSE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE)),
+                    list(title = "GOVT"))),
+      list(
+        label = "DUR",
+        method = "update",
+        args = list(list(visible = c(FALSE,FALSE,FALSE,FALSE,TRUE,FALSE,FALSE,FALSE)),
+                    list(title = "DUR"))),
+      list(
+        label = "HOM",
+        method = "update",
+        args = list(list(visible = c(FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE,FALSE)),
+                    list(title = "HOM"))),
+      list(
+        label = "CAR",
+        method = "update",
+        args = list(list(visible = c(FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE)),
+                    list(title = "CAR"))),
+      list(
+        label = "AGE",
+        method = "update",
+        args = list(list(visible = c(FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE)),
+                    list(title = "AGE"))),
+      list(
+        label = "EDUC",
+        method = "update",
+        args = list(list(visible = c(TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE)),
+                    list(title = "EDUC")))
+      )
+  )
+)
+PYdf<-GtoP_trans(MCSI_Data_monthAvg_melt[MCSI_Data_monthAvg_melt$series!="INCOME", ],NAME="series",X="YYYYMM",Y="value")
+PYdf$INCOME<-NULL
+PYdf<-log10(PYdf)
+plot_ly(type="scatter",mode="lines")%>%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$ICS,name="ICS",line=list(color="powderblue"))%>%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$ICC,name="ICC",line=list(color="red"))%>%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$GOVT,name="GOVT",line=list(color="green"))%>%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$DUR,name="DUR",line=list(color="orange"))%>%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$HOM,name="HOM",line=list(color="purple"))%>%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$CAR,name="CAR",line=list(color="pink"))%>%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$AGE,name="AGE",line=list(color="brown"))%>%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$EDUC,name="EDUC",line=list(color="black"))%>%
+  layout(title= list(text="Time series for 8 indexes",font=list(family = "Times New Roman",size = 16,color = "black" )),
+           paper_bgcolor='rgb(255,255,255)', plot_bgcolor='rgb(229,229,229)',
+           xaxis = list(title ="Time (monthly)",
+                        gridcolor = 'rgb(255,255,255)',
+                        showgrid = TRUE,
+                        showline = FALSE,
+                        showticklabels = TRUE,
+                        tickcolor = 'rgb(127,127,127)',
+                        ticks = 'outside',
+                        zeroline = FALSE),
+           yaxis = list(title = "Index Values (log10-scale)",
+                        gridcolor = 'rgb(255,255,255)',
+                        showgrid = TRUE,
+                        showline = FALSE,
+                        showticklabels = TRUE,
+                        tickcolor = 'rgb(127,127,127)',
+                        ticks = 'outside',
+                        zeroline = FALSE),
+         updatemenus=updatemenus)
+```
+
+```{r Figure 1.5 Output, echo=FALSE}
+# Figure 1.5 Output
+png("../Figures/Fig1.5.png",width = 1600,height = 900, res = 100)
+ggplot(MCSI_Data_monthAvg_melt[MCSI_Data_monthAvg_melt$series!="INCOME", ], 
+       aes(YYYYMM, value)) + 
+    geom_line(aes(linetype=series, colour = series), size=2) +
+    geom_point(aes(shape=series, colour = series), size=0.3) +
+      # geom_line(aes(colour = series)) +
+    geom_smooth(aes(colour = series), se = TRUE) +
+    coord_trans(y="log10") +
+    xlab("Time (monthly)") + ylab("Index Values (log-scale)") +
+    # scale_x_date(labels = date_label("%m-%Y")) +
+    scale_x_date(date_breaks = "12 month", date_labels =  "%m-%Y")  +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          text = element_text(size=20))+
+    theme(legend.position="top")
+dev.off()
+```
+
+
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+# Next, we want to take this example one step further and demonstrate the foundation of
+# spacekime analytics using one oversimplified example that illustrates the tradeoffs
+# between traditional spacetime inference and their spacekime analytical counterparts.
+
+colnames(MCSI_Data_monthAvg)
+
+MCSI_Data_monthAvg_ts <- 
+  ts(MCSI_Data_monthAvg, start=c(1978,1), end=c(2018, 12), frequency = 12)
+class(MCSI_Data_monthAvg_ts)
+dim(MCSI_Data_monthAvg_ts)
+# [1] 492  10
+# Time-series plots: 41 years * 12 months = 492 time points
+plot.ts(MCSI_Data_monthAvg_ts)
+
+plot(MCSI_Data_monthAvg_ts, plot.type="m")
+
+```
+
+```{r}
+# See MCSI docs: https://data.sca.isr.umich.edu/fetchdoc.php?docid=45121
+# Outcome to Predict: ICS = INDEX OF CONSUMER SENTIMENT
+Y <- MCSI_Data_monthAvg$ICS
+
+# Covariates explaining the longitudinal outcome: 
+# GOVT, DUR, HOM, CAR, INCOME, EDUC
+X <- cbind(MCSI_Data_monthAvg$GOVT, MCSI_Data_monthAvg$DUR, 
+           MCSI_Data_monthAvg$HOM, MCSI_Data_monthAvg$CAR, 
+           MCSI_Data_monthAvg$INCOME, MCSI_Data_monthAvg$EDUC)
+
+# Outcome Variable to be modelled, as a timeseries
+MCSI_Data_monthAvg_ts_Y <- ts(Y, start=c(1978,1), end=c(2018, 12), frequency = 12)
+
+############################################################################
+# Fit ARIMAX model on entire dataset, validate on prospective data (2019-2020) using (noisy) simulated XReg
+modArima <- auto.arima(MCSI_Data_monthAvg_ts_Y, xreg=X)
+modArima
+# Regression with ARIMA(2,0,1)(1,0,1)[12] errors 
+# Coefficients:
+#         ar1      ar2      ma1    sar1     sma1  intercept     xreg1     xreg2    xreg3    xreg4  xreg5
+#      1.4289  -0.4577  -0.6788  0.5851  -0.5346   151.4591  -11.2435  -10.7791  -2.7576  -0.9281  0e+00
+#s.e.  0.1885   0.1704   0.1649  0.3503   0.3637     8.4220    1.1118    1.0010   0.9115   0.9593  1e-04
+#       xreg6
+#      1.5743
+#s.e.  1.8224
+# sigma^2 estimated as 8.266:  log likelihood=-1212.44
+# AIC=2450.88   AICc=2451.64   BIC=2505.46
+```
+
+```{r}
+
+# Predict prospective ICS = INDEX OF CONSUMER SENTIMENT over next 2 years
+pred_length <- 2 * 12 # 2-years of monthly forward forecasting (2017-2018)
+start_period <- 468  # 39 years (2017-1978)*12
+
+# Noise-generating function to generate some synthetic predictors (X_new) and test the ARIMA(2,0,1)(1,0,1)[12] model
+noiseGen <- function(data) { 
+  if (is.vector(data)) 
+      return( data + rnorm(length(data), mean(data), sd(data))) 
+  else 
+      return(data + matrix(rnorm(dim(data)[1] * dim(data)[2], 0, 1), dim(data)[1]))
+}
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+X_new <- noiseGen(X[(start_period+1):(start_period+24), ])  # just noise-corrupt the months 301:324 predictors
+
+for (i in 1:6){
+  # just noise-corrupt the months 468:492 predictors
+  X_new[ ,i] <- noiseGen(X[(start_period+1):(start_period+24), i])  
+}
+# Check X_new, relative to X
+# head (X[(start_period+1):(start_period+24), ])
+# head(X_new)
+# dim(X)
+# dim(X_new)
+
+pred2years_ICS <- predict(modArima, n.ahead = pred_length, newxreg = X_new)
+#plot(pred2years_ICS$pred, main="Forward time-series predictions (fitArimaX)")
+# Plot data (4-yrs) and prediciton model, CI's (prospective 2-yrs)
+plot(forecast(modArima, xreg = X_new), lwd=2, include=48, xlab="Time", 
+     ylab="ICS = INDEX OF CONSUMER SENTIMENT (US)",
+     main = "(2020-2021) Forecasting US ICS based on ARIMAX(2,0,1) Model 
+     \n using prospective regression estimates of GOVT, DUR, HOM, CAR, INCOME & EDUC")
+
+# autoplot(forecast(modArima, xreg = X_new))
+```
+
+Interactive plot here
+```{r}
+TSplot(48,modArima,X_new,TITLE = "(2020-2021) Forecasting US ICS based on ARIMAX(2,0,1) Model using prospective regression estimates of GOVT, DUR, HOM, CAR, INCOME & EDUC",Xlab ="Time",Ylab = "ICS = INDEX OF CONSUMER SENTIMENT (US)",title_size = 8,ts_original = "Original time series",ts_forecast = "Predicted time series")
+```
+
+```{r}
+################################################################################################
+# Fit model only on 39 years (1978-2016), and Evaluate on testing data (2017-2018)
+Y_train <- MCSI_Data_monthAvg$ICS[1:(39*12)]
+length(Y_train)/12
+Y_test <- MCSI_Data_monthAvg$ICS[((39*12)+1):length(MCSI_Data_monthAvg$ICS)] 
+length(Y_test)/12
+
+# Training and Testing Data Covariates explaining the longitudinal outcome (Y): 
+# GOVT, DUR, HOM, CAR, INCOME, EDUC
+X_train <- 
+  as.data.frame(cbind(MCSI_Data_monthAvg$GOVT, MCSI_Data_monthAvg$DUR, 
+                      MCSI_Data_monthAvg$HOM, MCSI_Data_monthAvg$CAR, 
+                      MCSI_Data_monthAvg$INCOME, MCSI_Data_monthAvg$EDUC))[1:(39*12), ]
+dim(X_train)
+X_test <- 
+  as.data.frame(cbind(MCSI_Data_monthAvg$GOVT, MCSI_Data_monthAvg$DUR, 
+                      MCSI_Data_monthAvg$HOM, MCSI_Data_monthAvg$CAR, 
+                      MCSI_Data_monthAvg$INCOME,
+                      MCSI_Data_monthAvg$EDUC))[((39*12)+1):length(MCSI_Data_monthAvg$ICS), ]
+dim(X_test)
+
+# Outcome Variable to be modelled, as a timeseries
+MCSI_Data_monthAvg_ts_Y_train <- ts(Y_train, start=c(1978,1), end=c(2016, 12), frequency = 12)
+MCSI_Data_monthAvg_ts_Y_test <- ts(Y_test, start=c(2017,1), end=c(2018, 12), frequency = 12)
+
+# Find ARIMAX model
+modArima_train <- auto.arima(MCSI_Data_monthAvg_ts_Y_train, xreg=as.matrix(X_train))
+
+modArima_train
+# Regression with ARIMA(2,0,1)(1,0,1)[12] errors 
+# Coefficients:
+#         ar1      ar2      ma1    sar1     sma1  intercept        V1        V2       V3       V4     V5
+#      1.4447  -0.4737  -0.6944  0.5781  -0.5307   152.4668  -11.4417  -10.9797  -2.8305  -0.7844  0e+00
+#s.e.  0.1915   0.1719   0.1667  0.4193   0.4340     8.6771    1.1624    1.0447   0.9301   1.0023  1e-04
+#          V6
+#      1.6079
+#s.e.  1.8702
+# sigma^2 estimated as 8.564:  log likelihood=-1161.29
+# AIC=2348.59   AICc=2349.39   BIC=2402.52
+
+pred2years_ICS <- predict(modArima_train, n.ahead = pred_length, frequency=12, newxreg = X_test)
+#plot(pred2years_ICS$pred, main="Forward time-series predictions (fitArimaX)")
+# pred_arimax_2_0_1 <- forecast(modArima_train, xreg = X_test)
+# pred_arimax_2_0_1_2017_2018 <- 
+#   ts(pred_arimax_2_0_1$fitted, frequency=12, start=c(2017,1), end=c(2018,12))
+```
+
+## Figure 1.6
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+# Plot ICS training Data, Testing ICS and Predicted ICS
+plot(forecast(modArima_train, xreg = as.matrix(X_test) ), lwd=2, xlab="Time", 
+     ylab="ICS = INDEX OF CONSUMER SENTIMENT (US)",
+     main = "(2017-2018) Forecasting US ICS based on fitting ARIMAX(2,0,1) Model on 1978-2016 data
+      \n using regression effect estimates of GOVT, DUR, HOM, CAR, INCOME & EDUC")
+lines(MCSI_Data_monthAvg_ts_Y_test, col = "red", lwd = 4, lty=1)  
+legend(1990, 60, bty="n", legend=c("Training ICS Data (1978-2016)", 
+                                   "ARIMAX-model ICS Forecasting (2017-2018)",
+                                   "MCSI Official ICS (2017-2018)"),
+       col=c("black", "blue", "red"), 
+       lty=c(1,1,1), lwd=c(2,2,4), cex=1.2, x.intersp=0.5, y.intersp=0.7)
+```
+
+Interactive Plot here
+```{r}
+newline<-ADDline(TS = MCSI_Data_monthAvg_ts_Y_test,linetype = "TS",Name = "MCSI Official ICS (2017-2018)")
+
+TSplot("all",modArima_train,as.matrix(X_test),TITLE = "ZOOM: (2017-2018) Forecasting US ICS based on fitting ARIMAX(2,0,1) Model on 1978-2016 data using regression effect estimates of GOVT, DUR, HOM, CAR, INCOME & EDUC",Ylab ="ICS = INDEX OF CONSUMER SENTIMENT (US)",Xlab ="Time",title_size = 8,ts_original = "Training ICS Data (1978-2016)",ts_forecast = "ARIMAX-model ICS Forecasting (2017-2018)")%>%
+  add_lines(x=newline$X,text=newline$TEXT,y=newline$Y,name=newline$NAME,line=list(color="grey"))
+```
+
+```{r Figure 1.6 Output, echo=FALSE}
+# Figure 1.6 Output
+png("../Figures/Fig1.6.png",width = 1500,height = 900, res = 100)
+# Plot ICS training Data, Testing ICS and Predicted ICS
+plot(forecast(modArima_train, xreg = as.matrix(X_test) ), lwd=2, xlab="Time", 
+     ylab="ICS = INDEX OF CONSUMER SENTIMENT (US)",
+     main = "(2017-2018) Forecasting US ICS based on fitting ARIMAX(2,0,1) Model on 1978-2016 data
+      \n using regression effect estimates of GOVT, DUR, HOM, CAR, INCOME & EDUC")
+lines(MCSI_Data_monthAvg_ts_Y_test, col = "red", lwd = 4, lty=1)  
+legend(1990, 60, bty="n", legend=c("Training ICS Data (1978-2016)", 
+                                   "ARIMAX-model ICS Forecasting (2017-2018)",
+                                   "MCSI Official ICS (2017-2018)"),
+       col=c("black", "blue", "red"), 
+       lty=c(1,1,1), lwd=c(2,2,4), cex=1.2, x.intersp=0.5, y.intersp=0.7)
+dev.off()
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+# Zoom in on a smaller interval (4-years prior and 2-years forecasting)
+plot(forecast(modArima_train, xreg = as.matrix(X_test) ), include=48, lwd=2, xlab="Time", 
+     ylab="ICS = INDEX OF CONSUMER SENTIMENT (US)",
+     main = "ZOOM: (2017-2018) Forecasting US ICS based on fitting ARIMAX(2,0,1) Model on 1978-2016 data
+      \n using regression effect estimates of GOVT, DUR, HOM, CAR, INCOME & EDUC")
+lines(MCSI_Data_monthAvg_ts_Y_test, col = "red", lwd = 4, lty=1)  
+legend("topleft", bty="n", legend=c("Training ICS Data (2013-2016)", 
+                                   "ARIMAX-model ICS Forecasting (2017-2018)",
+                                   "MCSI Official ICS (2017-2018)"),
+       col=c("black", "blue", "red"), 
+       lty=c(1,1,1), lwd=c(2,2,4), cex=1.2, x.intersp=1.5, y.intersp=0.7)
+text(2014, 91, "Training Region (1978-2016)\n Model(ICS) -> ARIMAX(p,q,r)\n XReg={X_i}, 1<=i<=6", cex=1.5)
+text(2018, 79, "Validation Region (2017-2018)\n hat(ICS) <- ARIMAX(2,0,1)\n XReg={X_i}, 1<=i<=6", cex=1.5)
+```
+
+Interactive plot here
+```{r}
+newline<-ADDline(TS = MCSI_Data_monthAvg_ts_Y_test,linetype = "TS",Name = "MCSI Official ICS (2017-2018)")
+
+TSplot(48,modArima_train,as.matrix(X_test),TITLE = "(2017-2018) Forecasting US ICS based on fitting ARIMAX(2,0,1) Model on 1978-2016 data using regression effect estimates of GOVT, DUR, HOM, CAR, INCOME & EDUC",Ylab ="ICS = INDEX OF CONSUMER SENTIMENT (US)",Xlab ="Time",title_size = 8,ts_original = "Training ICS Data (2013-2016)\nTraining Region (1978-2016)\n Model(ICS) -> ARIMAX(p,q,r)\n XReg={X_i}, 1<=i<=6",ts_forecast = "ARIMAX-model ICS Forecasting (2017-2018)\nValidation Region (2017-2018)\n hat(ICS) <- ARIMAX(2,0,1)\n XReg={X_i}, 1<=i<=6")%>%
+  add_lines(x=newline$X,text=newline$TEXT,y=newline$Y,name=newline$NAME,line=list(color="grey"))
+```
+
+```{r}
+##############################################################################################
+# FT/Spacekime Analytics
+# 1D timeseries FFT SHIFT
+fftshift1D <- function(img_ff) {
+  rows <- length(img_ff)   
+  rows_half <- ceiling(rows/2)
+  return(append(img_ff[(rows_half+1):rows], img_ff[1:rows_half]))
+}
+
+# 1. Transform all 6 predictors (X) and outcome (Y) series to k-space (Fourier domain)
+# Transform entire Xreg matrix (12*39 = 468 PLUS 12*2 = 24, a total of 492 time points: Training + Testing)
+# But transform only the Training Y outcome (12*39 = 468 time points: Training)
+MCSI_data <- cbind(Y_train, X_train)
+dim(MCSI_data)
+colnames(MCSI_data) <- c("Y_train", "GOVT", "DUR", "HOM", "CAR", "INCOME", "EDUC")
+#head(MCSI_data)
+colnames(X_test) <- c("GOVT", "DUR", "HOM", "CAR", "INCOME", "EDUC")
+head(X_test)
+#   MCSI_data_numeric <- as.matrix(MCSI_data)  # remove column names for FT processing
+
+FT_MCSI_data <- array(complex(), c(468, 7))
+mag_FT_MCSI_data <- array(complex(), c(468, 7))
+phase_FT_MCSI_data <- array(complex(), c(468, 7))
+IFT_NilPhase_FT_MCSI_data <- cbind(Y_train, X_train)        # array( , c(468, 7))
+IFT_ScramblePhase_FT_MCSI_data <- cbind(Y_train, X_train)   # array( , c(468, 7))
+IFT_LoadedPhase_FT_MCSI_data <- cbind(Y_train, X_train)   # array( , c(468, 7))
+
+for (i in 1:7) {
+  FT_MCSI_data[ , i] <- fft(MCSI_data[ , i])
+  X2 <- FT_MCSI_data[ , i]
+  # plot(fftshift1D(log(Re(X2)+2)), main = "log(fftshift1D(Re(FFT(timeseries))))") 
+  mag_FT_MCSI_data[ , i] <- sqrt(Re(X2)^2+Im(X2)^2); 
+  # plot(log(fftshift1D(Re(mag_FT_MCSI_data))), main = "log(Magnitude(FFT(timeseries)))") 
+  phase_FT_MCSI_data[ , i] <- atan2(Im(X2), Re(X2)); 
+  # plot(Re(fftshift1D(phase_FT_MCSI_data[ , 1])), main = "Shift(Phase(FFT(timeseries)))")
+}
+
+######### Test the FT-IFT analysis-synthesis back-and-forth transofrm process to confirm calculations
+#           X2 <- FT_MCSI_data[ , 1]; mag_FT_MCSI_data[ , 1] <- sqrt(Re(X2)^2+Im(X2)^2); 
+#           phase_FT_MCSI_data[ , 1] <- atan2(Im(X2), Re(X2)); 
+# Real2 = mag_FT_MCSI_data[ , 1] * cos(phase_FT_MCSI_data[ , 1])
+# Imaginary2 = mag_FT_MCSI_data[ , 1] * sin(phase_FT_MCSI_data[ , 1])
+# man_hat_X2 = Re(fft(Real2 + 1i*Imaginary2, inverse = T)/length(X2))
+# ifelse(abs(man_hat_X2[5] - MCSI_data[5, 1]) < 0.001, "Perfect Syntesis", "Problems!!!")
+#########
+```
+
+
+
+
+```{r}
+# Examine the Kime-direction Distributions of the Phases for all 7 features (predictors + outcome)
+df.phase_FT_MCSI_data <- as.data.frame(Re(phase_FT_MCSI_data))
+df.phase_FT_MCSI_data %>% 
+  gather() %>% 
+  head()
+colnames(df.phase_FT_MCSI_data) <- colnames(MCSI_data)
+colnames(df.phase_FT_MCSI_data)[1] <- "ICS"
+phaseDistributions <- gather(df.phase_FT_MCSI_data)
+colnames(phaseDistributions) <- c("Feature", "Phase")
+```
+
+## Figure 1.8
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+# map the value as our x variable, and use facet_wrap to separate by the key column:
+ggplot(phaseDistributions, aes(Phase)) + 
+  # geom_histogram(bins = 10) + 
+  geom_histogram(aes(y=..density..), bins = 10) + 
+  facet_wrap( ~Feature, scales = 'free_x') +
+  xlim(-pi, pi) + 
+  theme(strip.text.x = element_text(size = 16, colour = "black", angle = 0))
+```
+
+```{r Figure 1.8 Output, echo=FALSE}
+# Figure 1.8 Output
+png("../Figures/Fig1.8.png",width = 800,height = 600, res = 100)
+# map the value as our x variable, and use facet_wrap to separate by the key column:
+ggplot(phaseDistributions, aes(Phase)) + 
+  # geom_histogram(bins = 10) + 
+  geom_histogram(aes(y=..density..), bins = 10) + 
+  facet_wrap( ~Feature, scales = 'free_x') +
+  xlim(-pi, pi) + 
+  theme(strip.text.x = element_text(size = 16, colour = "black", angle = 0))
+dev.off()
+```
+
+
+```{r}
+#### Perform the Space-kime transform separately for the X_test data
+dim(X_test) # [1] 24  6
+colnames(X_test)
+head(X_test)
+
+FT_X_test <- array(complex(), c(24, 6))
+mag_FT_X_test <- array(complex(), c(24, 6))
+phase_FT_X_test <- array(complex(), c(24, 6))
+IFT_NilPhase_FT_X_test <- X_test        # array( , c(24, 6))
+IFT_ScramblePhase_FT_X_test <- X_test   # array( , c(24, 6)
+IFT_LoadedPhase_FT_X_test <- X_test   # array( , c(24, 6)
+
+for (i in 1:6) {
+  FT_X_test[ , i] <- fft(X_test[ , i])
+  X2 <- FT_X_test[ , i]
+  mag_FT_X_test[ , i] <- sqrt(Re(X2)^2+Im(X2)^2); 
+  phase_FT_X_test[ , i] <- atan2(Im(X2), Re(X2)); 
+}
+
+```
+
+```{r}
+##########################################################################################
+# 2. Nil-Phase reconstruction
+#       Invert back to spacetime the mag_FT_MCSI_data[ , i] & mag_FT_X_test [, i] signals with nil-phase
+for (i in 1:7) {
+  Real <- mag_FT_MCSI_data[ , i] * cos(0)  
+  Imaginary <- mag_FT_MCSI_data[ , i] * sin(0) 
+  IFT_NilPhase_FT_MCSI_data[ ,i] <- 
+    Re(fft(Real+1i*Imaginary, inverse = T)/length(FT_MCSI_data[ , i]))
+# display(ift_NilPhase_X2mag, method = "raster")
+# dim(IFT_NilPhase_FT_MCSI_data); View(IFT_NilPhase_FT_MCSI_data); # compare to View(MCSI_data[ , ])
+}
+colnames(IFT_NilPhase_FT_MCSI_data) <- colnames(MCSI_data)
+dim(IFT_NilPhase_FT_MCSI_data)
+dim(FT_MCSI_data)
+
+
+
+colnames(IFT_NilPhase_FT_MCSI_data) 
+head(IFT_NilPhase_FT_MCSI_data)
+head(MCSI_data)
+
+for (i in 1:6) {
+  Real <- mag_FT_X_test[ , i] * cos(0)  
+  Imaginary <- mag_FT_X_test[ , i] * sin(0) 
+  IFT_NilPhase_FT_X_test[ ,i] <- 
+    Re(fft(Real+1i*Imaginary, inverse = T)/length(FT_X_test[ , i]))
+}
+head(IFT_NilPhase_FT_X_test)
+head(X_test)
+```
+
+```{r}
+# 3. Perform ARIMAX modeling on IFT_NilPhase_FT_MCSI_data; report (p,d,q) params and quality metrics AIC/BIC
+# library(forecast)
+IFT_NilPhase_FT_MCSI_data_Y_train <- IFT_NilPhase_FT_MCSI_data$Y_train[1:(39*12)]
+length(Y_train)/12
+# Y_test <- IFT_NilPhase_FT_MCSI_data$Y_train[(39*12+1):length(IFT_NilPhase_FT_MCSI_data$Y_train)]; length(Y_test)/12
+
+# Training and Testing Data Covariates explaining the longitudinal outcome (Y): 
+# GOVT, DUR, HOM, CAR, INCOME, EDUC
+IFT_NilPhase_FT_MCSI_data_X_train <- 
+  as.data.frame(cbind(IFT_NilPhase_FT_MCSI_data$GOVT, IFT_NilPhase_FT_MCSI_data$DUR, 
+                      IFT_NilPhase_FT_MCSI_data$HOM, IFT_NilPhase_FT_MCSI_data$CAR, 
+                      IFT_NilPhase_FT_MCSI_data$INCOME, 
+                      IFT_NilPhase_FT_MCSI_data$EDUC))[1:(39*12), ]
+dim(X_train)
+
+colnames(IFT_NilPhase_FT_MCSI_data_X_train) <- colnames(IFT_NilPhase_FT_X_test)
+
+# Outcome Variable to be modelled, as a timeseries
+MCSI_Data_monthAvg_ts_Y_train_IFT_NilPhase <- 
+         ts(IFT_NilPhase_FT_MCSI_data_Y_train, start=c(1978,1), end=c(2016, 12), frequency = 12)
+
+# Find ARIMAX model
+modArima_train_IFT_NilPhase <- 
+  auto.arima(MCSI_Data_monthAvg_ts_Y_train_IFT_NilPhase,
+             xreg=as.matrix(IFT_NilPhase_FT_MCSI_data_X_train))
+modArima_train_IFT_NilPhase
+
+# Regression with ARIMA(1,0,0)(1,0,0)[12] errors 
+# Coefficients:
+#  ar1    sar1  intercept       V1      V2      V3      V4     V5       V6
+# 0.8194  0.1554    26.3831  10.6846  8.6527  2.3138  2.2177  2e-04  -3.5998
+# s.e.  0.0316  0.0480     5.9317   1.3501  1.1259  1.1826  1.0817    NaN   1.8950
+# sigma^2 estimated as 3.401:  log likelihood=-946.65, AIC=1913.31   AICc=1913.79   BIC=1954.79
+
+pred_arimax_1_0_1 <- forecast(modArima_train_IFT_NilPhase, xreg = as.matrix(IFT_NilPhase_FT_X_test))
+pred_arimax_1_0_1_2017_2018 <- 
+  ts(pred_arimax_1_0_1$mean, frequency=12, start=c(2017,1), end=c(2018,12))
+
+pred_arimax_1_0_1_2017_2018
+# alternatively:
+# pred_arimax_1_0_1_2017_2018 <- predict(modArima_train_IFT_NilPhase, 
+#                                              n.ahead = pred_length, newxreg = X_test)$pred
+```
+
+```{r}
+####################################################################
+# 4. Scrambled-Phase reconstruction
+#   Invert back to spacetime the mag_FT_MCSI_data[ , i] signal using scrambled-phases
+#   randomly shaffle the rows of the Phases-matrix (Training & Testing XReg Data)
+shuffle_phase_FT_MCSI_data <- phase_FT_MCSI_data
+
+for (i in 1:7) {
+  set.seed(12345)   # sample randomly Phases for each of the 7 covariates (X & Y)
+  shuffle_phase_FT_MCSI_data[ , i] <- phase_FT_MCSI_data[sample(nrow(phase_FT_MCSI_data)), i]
+  Real <- mag_FT_MCSI_data[ , i] * cos(Re(shuffle_phase_FT_MCSI_data[ , i]))  
+  Imaginary <- mag_FT_MCSI_data[ , i] * sin(Re(shuffle_phase_FT_MCSI_data[ , i])) 
+  IFT_ScramblePhase_FT_MCSI_data[ ,i] <- 
+    Re(fft(Real+1i*Imaginary, inverse = T)/length(FT_MCSI_data[ , i]))
+}
+colnames(IFT_ScramblePhase_FT_MCSI_data) <- colnames(MCSI_data)
+dim(IFT_ScramblePhase_FT_MCSI_data)
+dim(FT_MCSI_data)
+colnames(IFT_ScramblePhase_FT_MCSI_data)
+head(IFT_ScramblePhase_FT_MCSI_data)
+
+# Perform similar scrambling of the phases separately for X_test (24 * 6) data
+shuffle_phase_FT_X_test <- phase_FT_X_test
+for (i in 1:6) {
+  set.seed(12345)   # sample randomly Phases for each of the 6 predictors covariates (X)
+  shuffle_phase_FT_X_test[ , i] <- phase_FT_MCSI_data[sample(nrow(phase_FT_X_test)), i]
+  Real <- mag_FT_X_test[ , i] * cos(Re(shuffle_phase_FT_X_test[ , i]))  
+  Imaginary <- mag_FT_X_test[ , i] * sin(Re(shuffle_phase_FT_X_test[ , i])) 
+  IFT_ScramblePhase_FT_X_test[ ,i] <- 
+    Re(fft(Real+1i*Imaginary, inverse = T)/length(FT_X_test[ , i]))
+}
+dim(IFT_ScramblePhase_FT_X_test)
+head(IFT_ScramblePhase_FT_X_test)
+```
+
+```{r}
+#######################################################
+# 5. Perform ARIMAX modeling on IFT_ScramblePhase_FT_MCSI_data; report (p,d,q) params and quality metrics AIC/BIC
+IFT_ScramblePhase_FT_MCSI_data_Y_train <- 
+  IFT_ScramblePhase_FT_MCSI_data$Y_train[1:(39*12)]
+
+length(Y_train)/12
+
+# Training and Testing Data Covariates explaining the longitudinal outcome (Y): 
+# GOVT, DUR, HOM, CAR, INCOME, EDUC
+IFT_ScramblePhase_FT_MCSI_data_X_train <- 
+  as.data.frame(cbind(IFT_ScramblePhase_FT_MCSI_data$GOVT, IFT_ScramblePhase_FT_MCSI_data$DUR, 
+                      IFT_ScramblePhase_FT_MCSI_data$HOM, IFT_ScramblePhase_FT_MCSI_data$CAR, 
+                      IFT_ScramblePhase_FT_MCSI_data$INCOME,
+                      IFT_ScramblePhase_FT_MCSI_data$EDUC))[1:(39*12), ]
+dim(IFT_ScramblePhase_FT_MCSI_data_X_train)
+
+# Outcome Variable to be modelled, as a timeseries
+MCSI_Data_monthAvg_ts_Y_train_IFT_ScramblePhase <- 
+  ts(IFT_ScramblePhase_FT_MCSI_data_Y_train, start=c(1978,1), end=c(2016, 12), frequency = 12)
+# unchanged: MCSI_Data_monthAvg_ts_Y_test <- ts(IFT_ScramblePhase_FT_MCSI_data_Y_train, start=c(2017,1), end=c(2018, 12), frequency = 12)
+
+# Find ARIMAX model
+modArima_train_IFT_ScramblePhase <- 
+  auto.arima(MCSI_Data_monthAvg_ts_Y_train_IFT_ScramblePhase,
+             xreg=as.matrix(IFT_ScramblePhase_FT_MCSI_data_X_train))
+
+modArima_train_IFT_ScramblePhase
+
+# Regression with ARIMA(1,0,2)(2,0,0)[12] errors 
+# Coefficients:
+#  ar1      ma1      ma2     sar1    sar2  intercept       V1       V2       V3       V4   V5      V6
+#0.9570  -0.0508  -0.1066  -0.0249  0.0320     62.736  -7.4009  -6.2064  -2.1374  -3.2478    0  4.5433
+#s.e.  0.0151   0.0511   0.0516   0.0483  0.0497        NaN   1.3351   1.0909   1.1224   1.1051  NaN  1.9499
+# sigma^2 estimated as 6.45:  log likelihood=-1095.3 AIC=2216.6   AICc=2217.4   BIC=2270.53
+
+pred_arimax_1_1_3 <- 
+  forecast(modArima_train_IFT_ScramblePhase, 
+           xreg =as.matrix(IFT_ScramblePhase_FT_X_test))
+pred_arimax_1_1_3_2017_2018 <- 
+  ts(pred_arimax_1_1_3$mean, frequency=12, start=c(2017,1), end=c(2018,12))
+pred_arimax_1_1_3_2017_2018
+#pred_arimax_1_1_3_2017_2018_pred <- predict(modArima_train_IFT_ScramblePhase, n.ahead = pred_length, newxreg = IFT_ScramblePhase_FT_X_test)$pred
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+
+######################################################################
+# 6. Loaded-Phase reconstruction: Phase' = \pi/8 + Phase
+#   Invert back to spacetime the mag_FT_MCSI_data[ , i] signal using Loaded-phases
+# define a pi-wrapper calculator to ensure phase-arithmetic stays within [-pi : pi)
+pi_wrapper <- function (x) {  
+  if(abs(x%%(2*pi)) <= pi) return(x%%(2*pi))
+  else if (-2*pi <= x%%(2*pi) & x%%(2*pi) < -pi) return (2*pi + x%%(2*pi))
+  else if (pi <= x%%(2*pi) & x%%(2*pi) < 2*pi) return (x%%(2*pi) - 2*pi)
+  else return (0)
+}
+
+loaded_phase_FT_MCSI_data <- Re(phase_FT_MCSI_data)
+for (i in 1:dim(phase_FT_MCSI_data)[1]) {
+  for (j in 1:dim(phase_FT_MCSI_data)[2])
+  loaded_phase_FT_MCSI_data[i,j] <- pi_wrapper(pi/8 + Re(phase_FT_MCSI_data[i,j]))
+}
+# head(loaded_phase_FT_MCSI_data)
+# Compare Loaded Phases to Native Phases
+    df.loadedPhase_FT_MCSI_data <- as.data.frame(loaded_phase_FT_MCSI_data)
+    df.loadedPhase_FT_MCSI_data %>% gather() %>% head()
+    colnames(df.loadedPhase_FT_MCSI_data) <- colnames(MCSI_data)
+    colnames(df.loadedPhase_FT_MCSI_data)[1] <- "ICS"
+    loadedPhaseDistributions <- gather(df.loadedPhase_FT_MCSI_data)
+    colnames(loadedPhaseDistributions) <- c("Feature", "Phase")
+    
+    # map the value as our x variable, and use facet_wrap to separate by the key column:
+    ggplot(loadedPhaseDistributions, aes(Phase)) + 
+      geom_histogram(aes(y=..density..), bins = 10) + 
+      facet_wrap( ~Feature, scales = 'free_x') +
+      xlim(-pi, pi) + 
+      theme(strip.text.x = element_text(size = 16, colour = "black", angle = 0))
+
+for (i in 1:7) {
+  Real <- mag_FT_MCSI_data[ , i] * cos(loaded_phase_FT_MCSI_data[ , i])  
+  Imaginary <- mag_FT_MCSI_data[ , i] * sin(loaded_phase_FT_MCSI_data[ , i]) 
+  IFT_LoadedPhase_FT_MCSI_data[ ,i] <- 
+    Re(fft(Real+1i*Imaginary, inverse = T)/length(FT_MCSI_data[ , i]))
+}
+colnames(IFT_LoadedPhase_FT_MCSI_data) <- colnames(MCSI_data)
+dim(IFT_LoadedPhase_FT_MCSI_data)
+dim(FT_MCSI_data)
+head(IFT_LoadedPhase_FT_MCSI_data)
+head(MCSI_data)
+```
+
+```{r}
+#########################################################################
+# 7. Perform ARIMAX modeling on IFT_LoadedPhase_FT_MCSI_data; report (p,d,q) params and quality metrics AIC/BIC
+IFT_LoadedPhase_FT_MCSI_data_Y_train <- IFT_LoadedPhase_FT_MCSI_data$Y_train[1:(39*12)]
+
+length(IFT_LoadedPhase_FT_MCSI_data_Y_train)/12
+# Y_test <- IFT_NilPhase_FT_MCSI_data$Y_train[(39*12+1):length(IFT_NilPhase_FT_MCSI_data$Y_train)]; length(Y_test)/12
+
+# Training and Testing Data Covariates explaining the longitudinal outcome (Y): 
+# GOVT, DUR, HOM, CAR, INCOME, EDUC
+IFT_LoadedPhase_FT_MCSI_data_X_train <- 
+  as.data.frame(cbind(IFT_LoadedPhase_FT_MCSI_data$GOVT, IFT_LoadedPhase_FT_MCSI_data$DUR, 
+                      IFT_LoadedPhase_FT_MCSI_data$HOM, IFT_LoadedPhase_FT_MCSI_data$CAR, 
+                      IFT_LoadedPhase_FT_MCSI_data$INCOME,
+                      IFT_LoadedPhase_FT_MCSI_data$EDUC))[1:(39*12),]
+dim(IFT_LoadedPhase_FT_MCSI_data_X_train)
+
+# Outcome Variable to be modelled, as a timeseries
+MCSI_Data_monthAvg_ts_Y_train_IFT_LoadedPhase <- 
+  ts(IFT_LoadedPhase_FT_MCSI_data_Y_train, start=c(1978,1), end=c(2016, 12), frequency = 12)
+# unchanged: MCSI_Data_monthAvg_ts_Y_test <- ts(IFT_LoadedPhase_FT_MCSI_data_Y_train, start=c(2017,1), end=c(2018, 12), frequency = 12)
+
+# Find ARIMAX model
+modArima_train_IFT_LoadedPhase <- 
+  auto.arima(MCSI_Data_monthAvg_ts_Y_train_IFT_LoadedPhase,
+             xreg=as.matrix(IFT_LoadedPhase_FT_MCSI_data_X_train))
+modArima_train_IFT_LoadedPhase
+
+# Regression with ARIMA(2,0,1)(1,0,1)[12] errors 
+# Coefficients:
+#  ar1      ar2      ma1    sar1     sma1  intercept        V1        V2       V3       V4     V5 V6
+# 1.4447  -0.4737  -0.6944  0.5781  -0.5307   140.8610  -11.4417  -10.9797  -2.8305  -0.7844  0e+00  1.6079
+# s.e.  0.1915   0.1719   0.1667  0.4193   0.4340     8.0166    1.1624    1.0447   0.9301   1.0023  1e-04  1.8702
+# sigma^2 estimated as 7.31:  log likelihood=-1124.24 AIC=2274.48   AICc=2275.28   BIC=2328.41
+
+# pred_arimax_2_0_1_Loaded <- forecast(modArima_train_IFT_LoadedPhase, xreg = X_test)
+#pred_arimax_2_0_1_Loaded_2017_2018 <- 
+#  ts(pred_arimax_2_0_1_Loaded$fitted, frequency=12, start=c(2017,1), end=c(2018,12))
+pred_arimax_2_0_1_Loaded_2017_2018 <- 
+  predict(modArima_train_IFT_LoadedPhase, n.ahead = pred_length, newxreg = X_test)$pred
+```
+
+## Figure 1.9
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+# 8. Final VIZ: Zoom in on a smaller interval
+# windows(width=10, height=8)
+plot(forecast(modArima_train, xreg = as.matrix(X_test)),                             # Spacetime ARIMA forecast
+     include=48, lwd=4, xlab="Time", ylab="ICS = INDEX OF CONSUMER SENTIMENT (US)", ylim=c(65,110),
+     main = "Spacetime vs. Spacekime Analytics: (2017-2018) US ICS Forecasting\n
+      based on fitting ARIMAX Models on raw & kime-transformed 1978-2016 data")
+lines(MCSI_Data_monthAvg_ts_Y_test, col = "red", lwd = 4, lty=1)          # Observed Y_Test timeseries
+lines(pred_arimax_1_0_1_2017_2018, col = "green", lwd = 4, lty=1)         # Nil Phase reconstr
+lines(pred_arimax_1_1_3_2017_2018, col = "purple", lwd = 4, lty=1)        # Scramble Phase recon
+lines(pred_arimax_2_0_1_Loaded_2017_2018, col = "brown", lwd = 4, lty=1)  # Loaded Phase recon
+lines(26+pred_arimax_1_1_3_2017_2018, col = "orange", lwd = 4, lty=1)        # Offset Scramble Phase recon
+legend("topleft", bty="n", legend=c("Training ICS Data (2013-2016)", 
+                        "ARIMAX(2,0,1)-model ICS Forecasting (2017-2018)",
+                        "MCSI-reported Official Index (2017-2018)",
+                        "ARIMAX(1,0,0) Nil-Phase recon model ICS Forecasting (2017-2018)",
+                        "ARIMAX(1,0,2) Scrambled-Phase recon model ICS Forecasting (2017-2018)",
+                        "ARIMAX(2,0,1) Loaded-Phase recon model ICS Forecasting (2017-2018)",
+                        "ARIMAX(1,0,2) Offset Scrambled-Phase recon model ICS Forecasting (2017-2018)"),
+       col=c("black", "blue", "red", "green", "purple", "brown", "orange"), 
+       lty=c(1,1,1,1,1,1,1), lwd=c(4,4,4,4,4,4,4), cex=1.5, x.intersp=1.5, y.intersp=0.4)
+text(2015.4, 66, expression(atop(paste("Training Region (1978-2016)"), 
+                paste(Model(ICS) %->% "ARIMAX(p, q, r) ;  ", 
+                      XReg %==% X[i], " ", i %in% {1 : 6}))), cex=1.5)
+text(2018, 66, expression(atop(paste("Validation Region (2017-2018)"), 
+        paste(hat(ICS) %<-% "ARIMAX( . , . , . ) ;  ", 
+              XReg %==% X[i], " ", i %in% {1 : 6}))), cex=1.5)
+```
+
+Interactive plot here
+```{r}
+nl1<-ADDline(TS = MCSI_Data_monthAvg_ts_Y_test,linetype = "TS",Name = "MCSI-reported Official Index (2017-2018)")
+nl2<-ADDline(TS = pred_arimax_1_0_1_2017_2018,linetype = "TS",Name = "ARIMAX(1,0,0) Nil-Phase\nrecon model ICS Forecasting (2017-2018)")
+nl3<-ADDline(TS = pred_arimax_1_1_3_2017_2018,linetype = "TS",Name = "ARIMAX(1,0,2) Scrambled-Phase\nrecon model ICS Forecasting (2017-2018)")
+nl4<-ADDline(TS = pred_arimax_2_0_1_Loaded_2017_2018,linetype = "TS",Name = "ARIMAX(2,0,1) Loaded-Phase\nrecon model ICS Forecasting (2017-2018)")
+nl5<-ADDline(TS = 26+pred_arimax_1_1_3_2017_2018,linetype = "TS",Name = "ARIMAX(1,0,2) Offset Scrambled-Phase\nrecon model ICS Forecasting (2017-2018)")
+
+TSplot(48,modArima_train,as.matrix(X_test),TITLE = "(2017-2018) Forecasting US ICS based on fitting ARIMAX(2,0,1) Model on 1978-2016 data using regression effect estimates of GOVT, DUR, HOM, CAR, INCOME & EDUC",Ylab ="ICS = INDEX OF CONSUMER SENTIMENT (US)",Xlab ="Time",title_size = 8,ts_original = "Training ICS Data (2013-2016)\nTraining Region (1978-2016)\n Model(ICS) -> ARIMAX(p,q,r)\n XReg={X_i}, 1<=i<=6",ts_forecast = "ARIMAX-model ICS Forecasting (2017-2018)\nValidation Region (2017-2018)\n hat(ICS) <- ARIMAX(2,0,1)\n XReg={X_i}, 1<=i<=6")%>%
+  add_lines(x=nl1$X,text=nl1$TEXT,y=nl1$Y,name=nl1$NAME,line=list(color="grey"))%>%
+  add_lines(x=nl2$X,text=nl2$TEXT,y=nl2$Y,name=nl2$NAME,line=list(color="blue"))%>%
+  add_lines(x=nl3$X,text=nl3$TEXT,y=nl3$Y,name=nl3$NAME,line=list(color="purple"))%>%
+  add_lines(x=nl4$X,text=nl4$TEXT,y=nl4$Y,name=nl4$NAME,line=list(color="brown"))%>%
+  add_lines(x=nl5$X,text=nl5$TEXT,y=nl5$Y,name=nl5$NAME,line=list(color="orange"))
+```
+
+```{r Figure 1.9A Output, echo=FALSE}
+# Figure 1.9A Output
+png("../Figures/Fig1.9A.png",width = 1000,height = 1600, res = 100)
+plot(forecast(modArima_train, xreg = as.matrix(X_test)),                             # Spacetime ARIMA forecast
+     include=48, lwd=4, xlab="Time", ylab="ICS = INDEX OF CONSUMER SENTIMENT (US)", ylim=c(65,110),
+     main = "Spacetime vs. Spacekime Analytics: (2017-2018) US ICS Forecasting\n
+      based on fitting ARIMAX Models on raw & kime-transformed 1978-2016 data")
+lines(MCSI_Data_monthAvg_ts_Y_test, col = "red", lwd = 4, lty=1)          # Observed Y_Test timeseries
+lines(pred_arimax_1_0_1_2017_2018, col = "green", lwd = 4, lty=1)         # Nil Phase reconstr
+lines(pred_arimax_1_1_3_2017_2018, col = "purple", lwd = 4, lty=1)        # Scramble Phase recon
+lines(pred_arimax_2_0_1_Loaded_2017_2018, col = "brown", lwd = 4, lty=1)  # Loaded Phase recon
+lines(26+pred_arimax_1_1_3_2017_2018, col = "orange", lwd = 4, lty=1)        # Offset Scramble Phase recon
+legend("topleft", bty="n", legend=c("Training ICS Data (2013-2016)", 
+                        "ARIMAX(2,0,1)-model ICS Forecasting (2017-2018)",
+                        "MCSI-reported Official Index (2017-2018)",
+                        "ARIMAX(1,0,0) Nil-Phase recon model ICS Forecasting (2017-2018)",
+                        "ARIMAX(1,0,2) Scrambled-Phase recon model ICS Forecasting (2017-2018)",
+                        "ARIMAX(2,0,1) Loaded-Phase recon model ICS Forecasting (2017-2018)",
+                        "ARIMAX(1,0,2) Offset Scrambled-Phase recon model ICS Forecasting (2017-2018)"),
+       col=c("black", "blue", "red", "green", "purple", "brown", "orange"), 
+       lty=c(1,1,1,1,1,1,1), lwd=c(4,4,4,4,4,4,4), cex=1.2, x.intersp=1.5, y.intersp=0.4)
+text(2015.4, 66, expression(atop(paste("Training Region (1978-2016)"), 
+                paste(Model(ICS) %->% "ARIMAX(p, q, r) ;  ", 
+                      XReg %==% X[i], " ", i %in% {1 : 6}))), cex=1.5)
+text(2018, 66, expression(atop(paste("Validation Region (2017-2018)"), 
+        paste(hat(ICS) %<-% "ARIMAX( . , . , . ) ;  ", 
+              XReg %==% X[i], " ", i %in% {1 : 6}))), cex=1.5)
+dev.off()
+```
+
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+#### Full 41-year plot
+plot(forecast(modArima_train, xreg = as.matrix(X_test)),  # include=48,              # Spacetime ARIMA forecast
+     lwd=4, xlab="Time", ylab="ICS = INDEX OF CONSUMER SENTIMENT (US)", ylim=c(55,125),
+     main = "Spacetime vs. Spacekime Analytics: (2017-2018) US ICS Forecasting\n
+     based on fitting ARIMAX Models on raw & kime-transformed 1978-2016 data")
+lines(MCSI_Data_monthAvg_ts_Y_test, col = "red", lwd = 4, lty=1)          # Observed Y_Test timeseries
+lines(pred_arimax_1_0_1_2017_2018, col = "green", lwd = 4, lty=1)         # Nil Phase reconstr
+lines(pred_arimax_1_1_3_2017_2018, col = "purple", lwd = 4, lty=1)        # Scramble Phase recon
+lines(pred_arimax_2_0_1_Loaded_2017_2018, col = "brown", lwd = 4, lty=1)  # Loaded Phase recon
+lines(26+pred_arimax_1_1_3_2017_2018, col = "orange", lwd = 4, lty=1)        # Offset Scramble Phase recon
+legend("topleft", bty="n", legend=c("Training ICS Data (2013-2016)", 
+                                    "ARIMAX(2,0,1)-model ICS Forecasting (2017-2018)",
+                                    "MCSI-reported Official Index (2017-2018)",
+                                    "ARIMAX(1,0,0) Nil-Phase recon model ICS Forecasting (2017-2018)",
+                                    "ARIMAX(1,0,2) Scrambled-Phase recon model ICS Forecasting (2017-2018)",
+                                    "ARIMAX(2,0,1) Loaded-Phase recon model ICS Forecasting (2017-2018)",
+                                    "ARIMAX(1,0,2) Offset Scrambled-Phase recon model ICS Forecasting (2017-2018)"),
+       col=c("black", "blue", "red", "green", "purple", "brown", "orange"), 
+       lty=c(1,1,1,1,1,1,1), lwd=c(4,4,4,4,4,4,4), cex=1.2, x.intersp=1.5, y.intersp=0.4)
+```
+
+Interactive plot here
+```{r}
+nl1<-ADDline(TS = MCSI_Data_monthAvg_ts_Y_test,linetype = "TS",Name = "MCSI-reported Official Index (2017-2018)")
+nl2<-ADDline(TS = pred_arimax_1_0_1_2017_2018,linetype = "TS",Name = "ARIMAX(1,0,0) Nil-Phase\nrecon model ICS Forecasting (2017-2018)")
+nl3<-ADDline(TS = pred_arimax_1_1_3_2017_2018,linetype = "TS",Name = "ARIMAX(1,0,2) Scrambled-Phase\nrecon model ICS Forecasting (2017-2018)")
+nl4<-ADDline(TS = pred_arimax_2_0_1_Loaded_2017_2018,linetype = "TS",Name = "ARIMAX(2,0,1) Loaded-Phase\nrecon model ICS Forecasting (2017-2018)")
+nl5<-ADDline(TS = 26+pred_arimax_1_1_3_2017_2018,linetype = "TS",Name = "ARIMAX(1,0,2) Offset Scrambled-Phase\nrecon model ICS Forecasting (2017-2018)")
+
+TSplot("all",modArima_train,as.matrix(X_test),TITLE = "(2017-2018) Forecasting US ICS based on fitting ARIMAX(2,0,1) Model on 1978-2016 data using regression effect estimates of GOVT, DUR, HOM, CAR, INCOME & EDUC",Ylab ="ICS = INDEX OF CONSUMER SENTIMENT (US)",Xlab ="Time",title_size = 8,ts_original = "Training ICS Data (2013-2016)\nTraining Region (1978-2016)\n Model(ICS) -> ARIMAX(p,q,r)\n XReg={X_i}, 1<=i<=6",ts_forecast = "ARIMAX-model ICS Forecasting (2017-2018)\nValidation Region (2017-2018)\n hat(ICS) <- ARIMAX(2,0,1)\n XReg={X_i}, 1<=i<=6")%>%
+  add_lines(x=nl1$X,text=nl1$TEXT,y=nl1$Y,name=nl1$NAME,line=list(color="grey"))%>%
+  add_lines(x=nl2$X,text=nl2$TEXT,y=nl2$Y,name=nl2$NAME,line=list(color="blue"))%>%
+  add_lines(x=nl3$X,text=nl3$TEXT,y=nl3$Y,name=nl3$NAME,line=list(color="purple"))%>%
+  add_lines(x=nl4$X,text=nl4$TEXT,y=nl4$Y,name=nl4$NAME,line=list(color="brown"))%>%
+  add_lines(x=nl5$X,text=nl5$TEXT,y=nl5$Y,name=nl5$NAME,line=list(color="orange"))
+```
+
+```{r Figure 1.9B Output, echo=FALSE}
+# Figure 1.9B Output
+png("../Figures/Fig1.9B.png",width = 1600,height = 900, res = 100)
+#### Full 41-year plot
+plot(forecast(modArima_train, xreg = as.matrix(X_test)),  # include=48,              # Spacetime ARIMA forecast
+     lwd=4, xlab="Time", ylab="ICS = INDEX OF CONSUMER SENTIMENT (US)", ylim=c(55,125),
+     main = "Spacetime vs. Spacekime Analytics: (2017-2018) US ICS Forecasting\n
+     based on fitting ARIMAX Models on raw & kime-transformed 1978-2016 data")
+lines(MCSI_Data_monthAvg_ts_Y_test, col = "red", lwd = 4, lty=1)          # Observed Y_Test timeseries
+lines(pred_arimax_1_0_1_2017_2018, col = "green", lwd = 4, lty=1)         # Nil Phase reconstr
+lines(pred_arimax_1_1_3_2017_2018, col = "purple", lwd = 4, lty=1)        # Scramble Phase recon
+lines(pred_arimax_2_0_1_Loaded_2017_2018, col = "brown", lwd = 4, lty=1)  # Loaded Phase recon
+lines(26+pred_arimax_1_1_3_2017_2018, col = "orange", lwd = 4, lty=1)        # Offset Scramble Phase recon
+legend("topleft", bty="n", legend=c("Training ICS Data (2013-2016)", 
+                                    "ARIMAX(2,0,1)-model ICS Forecasting (2017-2018)",
+                                    "MCSI-reported Official Index (2017-2018)",
+                                    "ARIMAX(1,0,0) Nil-Phase recon model ICS Forecasting (2017-2018)",
+                                    "ARIMAX(1,0,2) Scrambled-Phase recon model ICS Forecasting (2017-2018)",
+                                    "ARIMAX(2,0,1) Loaded-Phase recon model ICS Forecasting (2017-2018)",
+                                    "ARIMAX(1,0,2) Offset Scrambled-Phase recon model ICS Forecasting (2017-2018)"),
+       col=c("black", "blue", "red", "green", "purple", "brown", "orange"), 
+       lty=c(1,1,1,1,1,1,1), lwd=c(4,4,4,4,4,4,4), cex=1.2, x.intersp=1.5, y.intersp=0.4)
+dev.off()
+```
+
+
+
+# Appendix: Functions Used
+
+## fftshift1D()
+
+```{r}
+# 1D timeseries FFT SHIFT
+# A special case of imlementaiton of `fftshift` for 1D arrays
+#' This function is useful for visualizing the 1D Fourier transform with the zero-frequency 
+#' component in the middle of the spectrum.
+#' 
+#' @param img_ff A Fourier transform of a 1D signal.
+#' @return A properly shifted FT of the 1D array.
+#' 
+fftshift1D <- function(img_ff) {
+  rows <- length(img_ff)   
+  rows_half <- ceiling(rows/2)
+  return(append(img_ff[(rows_half+1):rows], img_ff[1:rows_half]))
+}
+```
+
+## noiseGen()
+
+```{r}
+# Noise-generating function to generate some synthetic predictors (X_new) 
+# and test the ARIMA(2,0,1)(1,0,1)[12] model
+#' This function is useful for generating noises for a given dataset 
+#' 
+#' @param data A data in the form of vector or of a matrix 
+#' @return A updated version of data where noise is also included
+#' 
+noiseGen <- function(data) { 
+  if (is.vector(data)) 
+      return( data + rnorm(length(data), mean(data), sd(data))) 
+  else 
+      return(data + matrix(rnorm(dim(data)[1] * dim(data)[2], 0, 1), dim(data)[1]))
+}
+```
+
+## pi_wrapper()
+
+```{r}
+# define a pi-wrapper calculator to ensure phase-arithmetic stays within [-pi : pi)
+#' This function makes sure that phase-arithmetic is between [-pi, pi]
+#' 
+#' @param x A numeric value
+#' @return A number that satifies one of the 4 cases specified below
+#' 
+pi_wrapper <- function (x) {  
+  if(abs(x%%(2*pi)) <= pi) return(x%%(2*pi))
+  else if (-2*pi <= x%%(2*pi) & x%%(2*pi) < -pi) return (2*pi + x%%(2*pi))
+  else if (pi <= x%%(2*pi) & x%%(2*pi) < 2*pi) return (x%%(2*pi) - 2*pi)
+  else return (0)
+}
+```
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->
+

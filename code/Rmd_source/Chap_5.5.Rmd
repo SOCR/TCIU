@@ -1,0 +1,30 @@
+---
+title: "Spacekime Analytics of Financial Market and Economics Data"
+subtitle: "[Back To Index](index.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 5
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#Spacekime Analytics of Financial Market and Economics Data
+## [Longitudinal Modeling](Fig5.15_to_17.html)
+## [Regularized Linear Modeling](Fig5.18_to_20.html) 
+## Dimensionality Reduction
+## [Unsupervised Clustering](Fig5.23_to_24.html)
+

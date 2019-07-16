@@ -1,0 +1,102 @@
+---
+title: "Figure 5.1"
+author: 'SOCR Team '
+date: "`r format(Sys.time(), '%B %Y')`"
+output:
+  html_document:
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    number_sections: yes
+    theme: spacelab
+    toc: yes
+    toc_depth: 2
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+subtitle: '[Back To Index](index.html)'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warings = FALSE)
+```
+
+
+
+
+# Kime-Phases Circular distribution plots
+
+```{r, message=FALSE, warning=FALSE}
+#install.packages("circular")
+library(circular)
+```
+
+```{r}
+set.seed(1234)
+x <- rvonmises(n=1000, mu=circular(pi/5), kappa=3)
+y <- rvonmises(n=1000, mu=circular(-pi/3), kappa=5)
+z <- rvonmises(n=1000, mu=circular(0), kappa=10)
+resx <- density(x, bw=25)
+res <- plot(resx, points.plot=TRUE, 
+            xlim=c(-1.5,1), ylim=c(-1.1, 1.5), offset=1.1, shrink=1.2, lwd=3)
+resy <- density(y, bw=25)
+lines(resy, points.plot=TRUE, col=2, points.col=2, plot.info=res, offset=1.1, shrink=1.45, lwd=3)
+resz <- density(z, bw=25)
+lines(resz, points.plot=TRUE, col=3, points.col=3, plot.info=res, offset=1.1, shrink=1.2, lwd=3)
+```
+
+
+
+
+```{r, echo=FALSE}
+# Figure 5.1 Output
+png("../Figures/Fig5.1.png",width = 1080,height = 840, res = 100)
+resx <- density(x, bw=25)
+res <- plot(resx, points.plot=TRUE, xlim=c(-1.5,1), 
+            ylim=c(-1.1, 1.5), offset=1.1, shrink=1.2, lwd=3)
+resy <- density(y, bw=25)
+lines(resy, points.plot=TRUE, col=2, points.col=2, plot.info=res, offset=1.1, shrink=1.45, lwd=3)
+resz <- density(z, bw=25)
+lines(resz, points.plot=TRUE, col=3, points.col=3, plot.info=res, offset=1.1, shrink=1.2, lwd=3)
+dev.off()
+```
+
+
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->

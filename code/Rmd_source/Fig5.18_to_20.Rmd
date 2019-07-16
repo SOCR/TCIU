@@ -1,0 +1,1638 @@
+---
+title: "Fig5.18_to_20"
+subtitle: "[Back To Chapter 5.5](Chap_5.5.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 5
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=F, warning=F}
+library(dplyr)
+library(arm)
+library(tidyr)
+library(ggplot2)
+library(ggrepel)
+library(plot3D)
+library(scatterplot3d)
+library(plotly)
+library(fastDummies)
+library(forecast)
+library(glmnet)
+library(knitr)
+library(doParallel)
+library(ggrepel)
+library(roxygen2)
+library(devtools)
+library(DT)
+registerDoParallel(10, cores = detectCores()-2)
+```
+
+Read the Rdata file
+```{r,warning=FALSE}
+load("./Rdata/Fig5.18_to_20.RData")
+```
+
+Load all new functions
+```{r,warning=FALSE,echo=FALSE}
+#'Testing homologous of features
+#'
+#' General function that ensures the XReg predictors for ALL 31 EU countries are homologous
+#'
+#'@param list_of_dfs a list of datasets of different countries
+completeHomologousX_features <- function (list_of_dfs) {
+  # delete features that are missing at all time points
+  for (j in 1:length(list_of_dfs)) {
+    print(paste0("Pre-processing Country: ...", countryNames[j], "... "))
+    data = list_of_dfs[[j]]
+    data = data[ , colSums(is.na(data)) != nrow(data)]%>%
+    select(-time, -country)%>%
+    as.matrix()%>%
+    cleardata()->DataMatrix
+    DataMatrix = DataMatrix[ , colSums(is.na(DataMatrix)) == 0] # remove features with only 1 value
+    DataMatrix = DataMatrix[ , colSums(DataMatrix) != 0] %>% # remove features with all values=0
+    # Supersample 72 --*5--> 360 timepoints 
+    splinecreate()%>%
+    as.data.frame()->DataSuperSample # super-Sample the data
+    # remove some of features  
+    DataSuperSample = DataSuperSample[, -c(50:80)]; dim(X)  # 360 167
+    # ensure full-rank design matrix, DataSuperSample
+    DataSuperSample <- 
+      DataSuperSample[ , qr(DataSuperSample)$pivot[seq_len(qr(DataSuperSample)$rank)]]
+    print(paste0("dim()=(", dim(DataSuperSample)[1], ",", dim(DataSuperSample)[2], ") ..."))
+    # update the current DF/Country
+    list_of_dfs_CommonFeatures[[j]] <- DataSuperSample
+  }
+  
+  # Identify All Xreg features that are homologous (same feature columns) across All 31 countries
+  # Identify Common Columns (freatures)
+  comCol <- Reduce(intersect, lapply(list_of_dfs_CommonFeatures, colnames))
+  list_of_dfs_CommonFeatures <- lapply(list_of_dfs_CommonFeatures, function(x) x[comCol])
+  
+  for (j in 1:length(list_of_dfs_CommonFeatures)) {
+    list_of_dfs_CommonFeatures[[j]] <- subset(list_of_dfs_CommonFeatures[[j]], select = comCol)
+    print(paste0("dim(", countryNames[j], ")=(", dim(list_of_dfs_CommonFeatures[[j]])[1], 
+                 ",", dim(list_of_dfs_CommonFeatures[[j]])[2], ")!"))  # 72 * 197
+  }
+  return(list_of_dfs_CommonFeatures)
+}
+
+#' Maps to convert between 1D indices
+#'
+#'@param indx Indicate the feature you wish to see after transfering to 1D index
+#'@return return the original country and feature code of the feature you wish to show
+index2CountryFeature <- function(indx=1) { 
+  if (indx<1 | indx>length(arimaModels_ARMA_coefs)) {
+    cat("Index out of bounds: indx=", indx, "; must be between 1 and ", 
+        length(arimaModels_ARMA_coefs), " ... Exiting ...")
+    return (NULL)
+  } else { 
+    feature = (indx-1) %% (dim(list_of_dfs_CommonFeatures[[1]])[2])
+    country = floor((indx - feature)/(dim(list_of_dfs_CommonFeatures[[1]])[2]))
+    return(list("feature"=(feature+1), "country"=(country+1)))  }
+}
+
+#'Transfer country and feature code to 1D index
+#'
+#'An opposite procedure of function "index2CountryFeature"
+#'@param countryIndx indicate the country you wish to transfer 
+#'@param featureIndx indicate the feature you wish to transfer
+countryFeature2Index <- function(countryIndx=1, featureIndx=1) { 
+  if (countryIndx<1 | countryIndx>(dim(list_of_dfs_CommonFeatures[[1]])[1]) |
+      featureIndx<1 | featureIndx>(dim(list_of_dfs_CommonFeatures[[1]])[2])) {
+    cat("Indices out of bounds: countryIndx=", countryIndx, "; featureIndx=", featureIndx, "; Exiting ...")
+    return (NULL)
+  } else { return (featureIndx + (countryIndx-1)*(dim(list_of_dfs_CommonFeatures[[1]])[2])) }
+}
+
+#Cleaned in another file
+
+# Plotting the coefficience
+coef_plot <- function(betahat, varn, plotname) {
+  betahat<-betahat[-1]
+  P <- coefplot(betahat[which(betahat!=0)], sd = rep(0, length(betahat[which(betahat!=0)])), 
+                pch=0, cex.pts = 3, col="red", main = plotname, varnames = varn[which(betahat!=0)])
+  return(P)
+}
+
+# Plotting the coefficience for those two methods
+findfeatures <- function(lassobeta, ridgebeta=NULL) {
+  lassobeta<-lassobeta[-1]
+  feat1 <- which(lassobeta!=0)
+  features <- feat1
+  if (!is.null(ridgebeta)) {
+    ridgebeta<-ridgebeta[-1]
+    feat2 <- order(abs(ridgebeta),decreasing = TRUE)[1:10]
+    features <- union(feat1, feat2)
+  }
+  return(features)
+}
+
+varImp <- function(object, lambda = NULL, ...) {
+  ## skipping a few lines
+  beta <- predict(object, s = lambda, type = "coef")
+  if(is.list(beta)) {
+    out <- do.call("cbind", lapply(beta, function(x) x[,1]))
+    out <- as.data.frame(out)
+    s <- rowSums(out)
+    out <- out[which(s)!=0,,drop=FALSE]
+  } else  {
+    out<-data.frame(Overall = beta[,1])
+    out<-out[which(out!=0),,drop=FALSE]
+  }
+  out <- abs(out[rownames(out) != "(Intercept)",,drop = FALSE])
+  out
+}
+
+Spacetime_Kime_Rank <- function(X,Y,signal="Weak",phase="Normal",result=1,Seed=4321,lam="min") {
+  X = X[ , colSums(is.na(X)) == 0]
+  if(signal=="Weak"){
+    X<-X[,1:378]
+  }
+  if(signal=="Strong"){
+    X<-X[,1:386]
+  }
+  if(phase=="Nil"){
+    FT_aggregate_arima_vector_country_ranking_df <- 
+      kSpaceTransform(aggregate_arima_vector_country_ranking_df, inverse = FALSE, reconPhases = NULL) 
+    if(result==6){
+      return(plotPhaseDistributions(FT_aggregate_arima_vector_country_ranking_df,
+                             colnames(aggregate_arima_vector_country_ranking_df), size=4, cex=0.1))
+    }
+    IFT_FT_aggregate_arima_vector_country_ranking_df <- 
+      kSpaceTransform(FT_aggregate_arima_vector_country_ranking_df$magnitudes, 
+                      TRUE, FT_aggregate_arima_vector_country_ranking_df$phases)
+    if(result==7){
+    return(PS_ARIMAX_remodel(aggregate_arima_vector_country_ranking_df[,1:ncol(aggregate_arima_vector_country_ranking_df)-1],
+                      Y,NULL,result = "reconstruct",rename_Y = "Yvec")[1:4])
+    }
+    IFT_NilPhase_FT_aggregate_arima_vector<-PS_ARIMAX_remodel(aggregate_arima_vector_country_ranking_df[,
+        1:ncol(aggregate_arima_vector_country_ranking_df)-1],Y,NULL,result = "reconstruct",rename_Y = "Yvec")[[6]]
+    rownames(IFT_NilPhase_FT_aggregate_arima_vector)<-rownames(X)
+  }
+  if(phase=="Swap"){
+    FT_aggregate_arima_vector_country_ranking_df <- 
+      kSpaceTransform(aggregate_arima_vector_country_ranking_df, inverse = FALSE, reconPhases = NULL) 
+    swappedPhase_FT_aggregate_arima_vector <- FT_aggregate_arima_vector_country_ranking_df$phases
+    IFT_SwappedPhase_FT_aggregate_arima_vector <- array(complex(), c(dim(temp_Data)[1], dim(temp_Data)[2]))
+    set.seed(Seed)   # sample randomly Phase-columns for each of the 131 covariates (X)
+    swappedPhase_FT_aggregate_arima_vector1 <- as.data.frame(cbind(
+      swappedPhase_FT_aggregate_arima_vector[ , 
+                                              sample(ncol(swappedPhase_FT_aggregate_arima_vector[ , 1:378]))],  # mix ARIMA signature phases
+      swappedPhase_FT_aggregate_arima_vector[ , 
+                                              sample(ncol(swappedPhase_FT_aggregate_arima_vector[ , 379:386]))],# mix the meta-data phases
+      swappedPhase_FT_aggregate_arima_vector[ , 387]))                          # add correct Outcome phase
+    swappedPhase_FT_aggregate_arima_vector <- swappedPhase_FT_aggregate_arima_vector1
+    
+    colnames(swappedPhase_FT_aggregate_arima_vector) <- colnames(temp_Data)
+  }
+  
+    text0<-dim(X)
+    set.seed(Seed)
+    if(phase=="Normal"){
+      Xmat<-X
+      CVlassotext<-c("CV LASSO (using only Timeseries data): Number of Nonzero (Active) Coefficients")
+      result2text<-c("Top 9 salient features (LASSO penalty)")
+    }
+    if(phase=="Nil"){
+      Xmat<-IFT_NilPhase_FT_aggregate_arima_vector
+      CVlassotext<-c("(Spacekime, Nil-phase) CV LASSO: Number of Nonzero (Active) Coefficients")
+      result2text<-c("(Spacekime) Top 9 salient features (LASSO penalty)")
+    }
+    if(phase=="Swap"){
+      Xmat<-swappedPhase_FT_aggregate_arima_vector
+      CVlassotext<-c("(Spacekime, Swapped-Phases) CV LASSO: Number of Nonzero (Active) Coefficients")
+      result2text<-c("(Spacekime, Swapped-Phases) Top 9 salient features (LASSO penalty)")
+    }
+    CVlasso<-cv.glmnet(data.matrix(Xmat[ , 1:ncol(Xmat)]), Y, alpha = 1, parallel=TRUE)
+    if(result==1){
+    plot(CVlasso)
+    mtext(CVlassotext, side=3, line=2.5)
+    }
+    PREDlasso<-predict(CVlasso,s=ifelse(lam=="min",CVlasso$lambda.min,lam),newx=data.matrix(Xmat[,1:ncol(Xmat)]))
+    Coeflist<-coef(CVlasso,s=ifelse(lam=="min",CVlasso$lambda.min,lam))
+    Coeflist <- data.frame(Coeflist@Dimnames[[1]][Coeflist@i+1],Coeflist@x)
+    names(Coeflist) <- c('Feature','EffectSize')
+    text1<-arrange(Coeflist, -abs(EffectSize))[2:10, ] ##This place Normal and Nil phase are not the same. See through it.
+    text2<-cor(Y, predLASSO_lim[, 1])
+    text3<-varImp(CVlasso, lambda = ifelse(lam=="min",CVlasso$lambda.min,lam))
+    if(result==2){
+      COEFplot<-coef(CVlasso, s = ifelse(lam=="min",CVlasso$lambda.min,lam)) %>%  # "lambda.min"
+        broom::tidy() %>%
+        filter(row != "(Intercept)") %>%
+        top_n(100, wt = abs(value)) %>%
+        ggplot(aes(value, reorder(row, value), color = value > 0)) +
+        geom_point(show.legend = FALSE, aes(size = abs(value))) +
+        ggtitle(result2text) +
+        xlab("Effect-size") +
+        ylab(NULL)
+      return(COEFplot)
+    }
+    if(phase=="Normal"){
+    validation_lim <- data.frame(matrix(NA, nrow = dim(PREDlasso)[1], ncol=2), row.names=countryNames)
+    validation_lim [ , 1] <- Y; validation_lim[ , 2] <- PREDlasso[, 1]
+    colnames(validation_lim) <- c("Orig_Y", "LASSO")
+    NN<-3
+    LMylab<-c("LASSO (42*9 +8) param model")
+    LMmain<-c("Observed (X) vs. LASSO-Predicted (Y) Overall Country Ranking, cor=%.02f")
+    Xin_result4<-validation_lim[ , 1]
+    Yin_result4<-validation_lim[ , 2]
+    result4title<-c("Spacetime LASSO Predicted (y) vs. Observed (x) Overall Country Ranking, cor=%.02f")
+    result4Y_T<-c( "Spacetime LASSO Predicted")
+    }
+    if(phase=="Nil"){
+      validation_lim <- cbind(PREDlasso[, 1], 
+                                   Xmat[ , 387], Y)  
+      colnames(validation_lim) <- c("predLASSO_kime", "IFT_NilPhase_FT_Y", "Orig_Y")
+      rownames(validation_lim)[11] <- "Germany"
+      NN<-4
+      LMylab<-c("IFT_NilPhase predLASSO_kime")
+      LMmain<-c("Observed (x) vs. IFT_NilPhase Predicted (y) Overall Country Ranking, cor=%.02f")
+      Xin_result4<-Y
+      Yin_result4<-PREDlasso
+      result4title<-c("Spacekime LASSO Predicted, Nil-Phases (y) vs. Observed (x) Overall Country Ranking, cor=%.02f")
+      result4Y_T<-c("Spacekime LASSO Predicted, using Nil-Phases")
+    }
+    if(phase=="Swap"){
+      set.seed(Seed)
+      cvLASSO_lim = cv.glmnet(data.matrix(X[ , 1:ncol(X)]), Y, alpha = 1, parallel=TRUE)
+      predLASSO_lim <-  predict(cvLASSO_lim, s = ifelse(lam=="min",cvLASSO_lim$lambda.min,lam), # cvLASSO_lim$lambda.min, 
+                                newx = data.matrix(X[ , 1:ncol(X)]))
+      IFT_NilPhase_FT_aggregate_arima_vector<-PS_ARIMAX_remodel(aggregate_arima_vector_country_ranking_df[,
+            1:ncol(aggregate_arima_vector_country_ranking_df)-1],Y,NULL,result = "reconstruct",rename_Y = "Yvec")[[6]]
+      rownames(IFT_NilPhase_FT_aggregate_arima_vector)<-rownames(X)
+      set.seed(Seed)
+      cvLASSO_nil_kime = cv.glmnet(data.matrix(IFT_NilPhase_FT_aggregate_arima_vector[ , 1:ncol(IFT_NilPhase_FT_aggregate_arima_vector)]), 
+                                   Y, alpha = 1, parallel=TRUE)
+      predLASSO_nil_kime <-  predict(cvLASSO_nil_kime, s = ifelse(lam=="min",cvLASSO_nil_kime$lambda.min,lam), 
+                                     newx = data.matrix(IFT_NilPhase_FT_aggregate_arima_vector[ , 1:ncol(IFT_NilPhase_FT_aggregate_arima_vector)]))
+      validation_lim <- cbind(PREDlasso[ , 1],predLASSO_lim[, 1], predLASSO_nil_kime[, 1], Y)  
+      colnames(validation_kime_swapped) <- c("predLASSO_IFT_SwappedPhase","predLASSO (spacetime)", "predLASSO_IFT_NilPhase", "Orig_Y")
+      NN<-5
+      LMylab<-c("predLASSO_spacekime_swapped Country Overall Ranking")
+      LMmain<-c("Observed (x) vs. Kime IFT_SwappedPhase_FT_Y (y) Overall Country Ranking, cor=%.02f")
+      Xin_result4<-Y
+      Yin_result4<-PREDlasso
+      result4title<-c("Spacekime LASSO Predicted, Swapped-Phases (y) vs. Observed (x) Overall Country Ranking, cor=%.02f")
+      result4Y_T<-c("Spacekime LASSO Predicted, using Swapped-Phases")
+    }
+    head(validation_nil_kime)
+    text4<-dim(validation_lim)
+    text5<-head(validation_lim)
+    validation_lim <- as.data.frame(cbind(validation_lim, ifelse (validation_lim[, 1]<=30, 1, 0)))
+    colnames(validation_lim)[NN] <- "Top30Rank"
+    text6<-head(validation_lim)
+    text7<-cor(validation_lim[ , 1], validation_lim[, NN-1])
+    linFit_lim <- lm(validation_lim[ , 1] ~ validation_lim[, 2])
+    if(result==3){
+    plot(validation_lim[ , 1] ~ validation_lim[, NN-1],
+         col="blue", xaxt='n', yaxt='n', pch = 16, cex=3,
+         xlab="Observed Country Overall Ranking", ylab=LMylab,
+         main = sprintf(LMmain, 
+                        cor(validation_lim[ , 1], validation_lim[, NN-1])))
+    abline(linFit_lim, lwd=3, col="red")
+    }
+    if(result==4){
+      myPlot <- ggplot(as.data.frame(validation_lim), aes(x=Xin_result4,
+                                                          y=Yin_result4, label=rownames(validation_lim))) +
+        geom_smooth(method='lm') +
+        geom_point() +
+        # Color by groups
+        # geom_text(aes(color=factor(rownames(validation_lim)))) +
+        geom_label_repel(aes(label = rownames(validation_lim),
+                             fill = factor(Top30Rank)), color = 'black', size = 5,  
+                         point.padding = unit(0.3, "lines")) +
+        # theme(legend.position = "bottom") +
+        theme(legend.position = c(0.1, 0.9), 
+              legend.text = element_text(colour="black", size=12, face="bold"),
+              legend.title = element_text(colour="black", size=14, face="bold")) +
+        scale_fill_discrete(name = "Country Overall Ranking", 
+                            labels = c("Below 30 Rank", "Top 30 Rank")) +
+        labs(title=sprintf(result4title,  cor(validation_lim[ , 1], validation_lim[, NN-1])),
+             x ="Observed Overall Country Ranking (1 is 'best')", 
+             y = "Spacetime LASSO Predicted")
+      return(myPlot)
+    }
+    if(result==5){
+      RESlist<-list(dimX=text0,Coef_first9=text1,COR_pred_true=text2,LASSO_Varimp=text3,dimLASSO=text4,LASSO_part_feature=text5,LASSO_rename_feature=text6,pred_COR=text7)
+      return(RESlist)
+    }
+}
+```
+
+# ML Data Analytics
+
+## `Spacetime` Analytics
+
+### Supervised classification
+
+Use [Model-based and Model-free methods](http://dspa.predictive.space/) to predict the *overall* (OA) country ranking.
+
+```{r,warning=FALSE}
+# 1. LASSO regression/feature extraction
+# subset test data
+Y = aggregate_arima_vector_country_ranking_df$OA
+X = aggregate_arima_vector_country_ranking_df[ , -387]
+# remove columns containing NAs
+X = X[ , colSums(is.na(X)) == 0]; dim(X)  # [1]  31 386
+
+fitRidge = glmnet(as.matrix(X), Y, alpha = 0)  # Ridge Regression
+fitLASSO = glmnet(as.matrix(X), Y, alpha = 1)  # The LASSO
+# LASSO
+plot(fitLASSO, xvar="lambda", label="TRUE", lwd=3)
+# add label to upper x-axis
+mtext("LASSO regularizer: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+
+# Ridge
+plot(fitRidge, xvar="lambda", label="TRUE", lwd=3)
+# add label to upper x-axis
+mtext("Ridge regularizer: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+
+#### 10-fold cross validation ####
+# LASSO
+set.seed(1234)  # set seed 
+# (10-fold) cross validation for the LASSO
+cvLASSO = cv.glmnet(data.matrix(X), Y, alpha = 1, parallel=TRUE)
+cvRidge = cv.glmnet(data.matrix(X), Y, alpha = 0, parallel=TRUE)
+plot(cvLASSO)
+mtext("CV LASSO: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+
+# Identify top predictors and forecast the Y=Overall (OA) Country ranking outcome
+predLASSO <-  predict(cvLASSO, s = cvLASSO$lambda.min, newx = data.matrix(X))
+testMSE_LASSO <- mean((predLASSO - Y)^2); testMSE_LASSO
+
+predLASSO = predict(cvLASSO, s = cvLASSO$lambda.min, newx = data.matrix(X))
+predRidge = predict(fitRidge, s = cvRidge$lambda.min, newx = data.matrix(X))
+
+# calculate test set MSE
+testMSELASSO = mean((predLASSO - Y)^2)
+testMSERidge = mean((predRidge - Y)^2)
+##################################Use only ARIMA effects, no SOCR meta-data#####
+set.seed(4321)
+cvLASSO_lim = cv.glmnet(data.matrix(X[ , 1:(42*9)]), Y, alpha = 1, parallel=TRUE)
+plot(cvLASSO_lim)
+mtext("CV LASSO (using only Timeseries data): Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+
+# Identify top predictors and forecast the Y=Overall (OA) Country ranking outcome
+predLASSO_lim <-  predict(cvLASSO_lim, s = 3, # cvLASSO_lim$lambda.min, 
+                          newx = data.matrix(X[ , 1:(42*9)]))
+coefList_lim <- coef(cvLASSO_lim, s=3) # 'lambda.min')
+coefList_lim <- data.frame(coefList_lim@Dimnames[[1]][coefList_lim@i+1],coefList_lim@x)
+names(coefList_lim) <- c('Feature','EffectSize')
+datatable(arrange(coefList_lim, -abs(EffectSize))[2:10, ],fillContainer = TRUE)
+cor(Y, predLASSO_lim[, 1])  # 0.84
+################################################################################
+
+# Plot Regression Coefficients: create variable names for plotting 
+# par(mar=c(2, 13, 1, 1))   # extra large left margin # par(mar=c(5,5,5,5))
+varNames <- colnames(X); datatable(data.frame(varNames),fillContainer = TRUE); length(varNames)
+
+betaHatLASSO = as.double(coef(fitLASSO, s = cvLASSO$lambda.min))  # cvLASSO$lambda.1se
+betaHatRidge = as.double(coef(fitRidge, s = cvRidge$lambda.min))
+
+#coefplot(betaHatLASSO[2:386], sd = rep(0, 385), pch=0, cex.pts = 3, main = "LASSO-Regularized Regression Coefficient Estimates", varnames = varNames)
+coefplot(betaHatLASSO[377:386], sd = rep(0, 10), pch=0, cex.pts = 3, col="red", main = "LASSO-Regularized Regression Coefficient Estimates", varnames = varNames[377:386])
+coefplot(betaHatRidge[377:386], sd = rep(0, 10), pch=2, add = TRUE, col.pts = "blue", cex.pts = 3)
+legend("bottomleft", c("LASSO", "Ridge"), col = c("red", "blue"), pch = c(1 , 2), bty = "o", cex = 2)
+
+varImp <- function(object, lambda = NULL, ...) {
+  ## skipping a few lines
+  beta <- predict(object, s = lambda, type = "coef")
+  if(is.list(beta)) {
+    out <- do.call("cbind", lapply(beta, function(x) x[,1]))
+    out <- as.data.frame(out)
+  } else out <- data.frame(Overall = beta[,1])
+  out <- abs(out[rownames(out) != "(Intercept)",,drop = FALSE])
+  out
+}
+
+datatable(varImp(cvLASSO, lambda = cvLASSO$lambda.min),fillContainer = TRUE)
+
+coefList <- coef(cvLASSO, s='lambda.min')
+coefList <- data.frame(coefList@Dimnames[[1]][coefList@i+1],coefList@x)
+names(coefList) <- c('Feature','EffectSize')
+datatable(arrange(coefList, -abs(EffectSize))[2:10, ],fillContainer = TRUE)
+#                      var        val  # Feature names: colnames(list_of_dfs_CommonFeatures[[1]])
+#1            (Intercept) 49.4896874
+#2   Feature_1_ArimaVec_8 -2.4050811   # Feature 1 = Active population: Females 15 to 64 years
+#3  Feature_20_ArimaVec_8 -1.4015001   # Feature 20= "Employment: Females 15 to 64 years
+#4            IncomeGroup -1.2271177
+#5   Feature_9_ArimaVec_8 -1.0629835   # Feature 9= Active population: Total 15 to 64 years
+#6                     ED -0.7481041
+#7                     PE -0.5167668
+#8  Feature_25_ArimaVec_5  0.4416775   # Feature 25= Property income
+#9   Feature_9_ArimaVec_4 -0.2217804
+#10                   QOL -0.1965342
+#                                     ARIMA: 4=non-seasonal MA, 5=seasonal AR, 8=non-seasonal Diff
+#
+#9 ARIMA-derived vector includes:
+# (1=ts_avg, 2=forecast_avg, 3=non-seasonal AR, 4=non-seasonal MA, 5=seasonal AR, 6=seasonal MA, 
+#  7=period, 8=non-seasonal Diff, 9=seasonal differences)
+
+# [1] "Active population by sex, age and educational attainment level, Females, From 15 to 64 years, All ISCED 2011 levels"                                                     
+# [2] "Active population by sex, age and educational attainment level, Females, From 15 to 64 years, Less than primary, primary and lower secondary education (levels 0-2)"     
+# [3] "Active population by sex, age and educational attainment level, Females, From 15 to 64 years, Tertiary education (levels 5-8)"                                           
+# [4] "Active population by sex, age and educational attainment level, Females, From 15 to 64 years, Upper secondary and post-secondary non-tertiary education (levels 3 and 4)"
+# [5] "Active population by sex, age and educational attainment level, Males, From 15 to 64 years, All ISCED 2011 levels"                                                       
+# [6] "Active population by sex, age and educational attainment level, Males, From 15 to 64 years, Less than primary, primary and lower secondary education (levels 0-2)"       
+# [7] "Active population by sex, age and educational attainment level, Males, From 15 to 64 years, Tertiary education (levels 5-8)"                                             
+# [8] "Active population by sex, age and educational attainment level, Males, From 15 to 64 years, Upper secondary and post-secondary non-tertiary education (levels 3 and 4)"  
+# [9] "Active population by sex, age and educational attainment level, Total, From 15 to 64 years, All ISCED 2011 levels"  
+#[10] "Active population by sex, age and educational attainment level, Total, From 15 to 64 years, Less than primary, primary and lower secondary education (levels 0-2)" 
+#[11] "Active population by sex, age and educational attainment level, Total, From 15 to 64 years, Tertiary education (levels 5-8)"        
+#[12] "Active population by sex, age and educational attainment level, Total, From 15 to 64 years, Upper secondary and post-secondary non-tertiary education (levels 3 and 4)"
+#[13] "All ISCED 2011 levels " 
+# [14] "All ISCED 2011 levels, Females"  
+# [15] "All ISCED 2011 levels, Males"
+# [16] "Capital transfers, payable"  
+# [17] "Capital transfers, receivable"  
+# [18] "Compensation of employees, payable"  
+# [19] "Current taxes on income, wealth, etc., receivable"
+#[20] "Employment by sex, age and educational attainment level, Females, From 15 to 64 years, All ISCED 2011 levels " 
+# [21] "Employment by sex, age and educational attainment level, Females, From 15 to 64 years, Less than primary, primary and lower secondary education (levels 0-2)"            
+# [22] "Other current transfers, payable"
+# [23] "Other current transfers, receivable" 
+# [24] "Property income, payable" 
+# [25] "Property income, receivable" 
+# [26] "Savings, gross" 
+# [27] "Subsidies, payable"
+# [28] "Taxes on production and imports, receivable"
+# [29] "Total general government expenditure"
+# [30] "Total general government revenue"
+# [31] "Unemployment , Females, From 15-64 years, Total"
+# [32] "Unemployment , Males, From 15-64 years" 
+# [33] "Unemployment , Males, From 15-64 years, from 1 to 2 months" 
+# [34] "Unemployment , Males, From 15-64 years, from 3 to 5 months"
+# [35] "Unemployment , Males, From 15-64 years, from 6 to 11 months"  
+# [36] "Unemployment , Total, From 15-64 years, From 1 to 2 months"
+# [37] "Unemployment , Total, From 15-64 years, From 12 to 17 months"
+# [38] "Unemployment , Total, From 15-64 years, From 3 to 5 months" 
+# [39] "Unemployment , Total, From 15-64 years, From 6 to 11 months"  
+# [40] "Unemployment , Total, From 15-64 years, Less than 1 month" 
+# [41] "Unemployment by sex, age, duration. DurationNA not started"
+# [42] "VAT, receivable"   
+
+coef(cvLASSO, s = "lambda.min") %>%
+  broom::tidy() %>%
+  filter(row != "(Intercept)") %>%
+  top_n(100, wt = abs(value)) %>%
+  ggplot(aes(value, reorder(row, value), color = value > 0)) +
+  geom_point(show.legend = FALSE, aes(size = abs(value))) +
+  ggtitle("Top 9 salient features (LASSO penalty)") +
+  xlab("Effect-size") +
+  ylab(NULL)
+
+validation <- data.frame(matrix(NA, nrow = dim(predLASSO)[1], ncol=3), row.names=countryNames)
+validation [ , 1] <- Y; validation [ , 2] <- predLASSO_lim[, 1]; validation [ , 3] <- predRidge[, 1]
+colnames(validation) <- c("Y", "LASSO", "Ridge")
+dim(validation)
+datatable(validation,fillContainer = TRUE)
+
+# Prediction correlations: 
+cor(validation[ , 1], validation[, 2])  # Y=observed OA rank vs. LASSO-pred  0.96 (lim) 0.84
+cor(validation[ , 1], validation[, 3])  # Y=observed OA rank vs. Ridge-pred  0.95
+
+# Plot observed Y (Overall Counry ranking) vs. LASSO (9-parameters) predicted Y^
+linFit1 <- lm(validation[ , 1] ~ predLASSO)
+plot(validation[ , 1] ~ predLASSO,
+     col="blue", xaxt='n', yaxt='n', pch = 16, cex=3,
+     xlab="Observed Country Overall Ranking", ylab="LASSO 9/(42*9) param model",
+     main = sprintf("Observed (X) vs. LASSO-Predicted (Y) Overall Country Ranking, cor=%.02f", 
+                    cor(validation[ , 1], validation[, 2])))
+abline(linFit1, lwd=3, col="red")
+
+# Plot observed LASSO (9-parameters) predicted Y^ vs. Y (Overall Counry ranking) 
+linFit1 <- lm(predLASSO_lim ~ validation[ , 1])
+plot(predLASSO_lim ~ validation[ , 1],
+     col="blue", xaxt='n', yaxt='n', pch = 16, cex=3,
+     xlab="Observed Country Overall Ranking", ylab="LASSO 9/(42*9) param model",
+     main = sprintf("Observed (X) vs. LASSO-Predicted (Y) Overall Country Ranking, cor=%.02f", 
+                    cor(validation[ , 1], validation[, 2])))
+abline(linFit1, lwd=3, col="red")
+```
+
+## `Spacekime` Analytics
+
+### Supervised classification
+
+Use [Model-based and Model-free methods](http://dspa.predictive.space/) to predict the *overall* (OA) country ranking.
+
+```{r,warning=FALSE, fig.width = 14, fig.height = 20, out.width = "2000", out.height = "2500"}
+# Generic function to Transform Data ={all predictors (X) and outcome (Y)} to k-space (Fourier domain): kSpaceTransform(data, inverse = FALSE, reconPhases = NULL) 
+# ForwardFT (rawData, FALSE, NULL)
+# InverseFT(magnitudes, TRUE, reconPhasesToUse) or InverseFT(FT_data, TRUE, NULL)
+
+# DATA
+# subset test data
+# Y = aggregate_arima_vector_country_ranking_df$OA
+# X = aggregate_arima_vector_country_ranking_df[ , -387]
+# remove columns containing NAs
+# X = X[ , colSums(is.na(X)) == 0]; dim(X)  # [1]  31 386
+length(Y); dim(X)
+
+FT_aggregate_arima_vector_country_ranking_df <- 
+  kSpaceTransform(aggregate_arima_vector_country_ranking_df, inverse = FALSE, reconPhases = NULL) 
+## Kime-Phase Distributions
+# Examine the Kime-direction Distributions of the Phases for all *Belgium* features (predictors + outcome). Define a generic function that plots the Phase distributions.
+# plotPhaseDistributions(dataFT, dataColnames)
+```
+
+```{r,warning=FALSE, fig.width = 15, fig.height = 15, out.width = "1920", out.height = "1920"}
+plotPhaseDistributions(FT_aggregate_arima_vector_country_ranking_df,
+                       colnames(aggregate_arima_vector_country_ranking_df), size=4, cex=0.1)
+```
+
+```{r,warning=FALSE, fig.width = 14, fig.height = 10, out.width = "1920", out.height = "1080"}
+IFT_FT_aggregate_arima_vector_country_ranking_df <- 
+  kSpaceTransform(FT_aggregate_arima_vector_country_ranking_df$magnitudes, 
+                  TRUE, FT_aggregate_arima_vector_country_ranking_df$phases)
+# Check IFT(FT) == I: 
+# ifelse(aggregate_arima_vector_country_ranking_df[5,4] -
+#     Re(IFT_FT_aggregate_arima_vector_country_ranking_df[5,4]) < 0.001, "Perfect Syntesis", "Problems!!!")
+
+##############################################
+# Nil-Phase Synthesis and LASSO model estimation
+# 1. Nil-Phase data synthesys (reconstruction)
+temp_Data <- aggregate_arima_vector_country_ranking_df
+nilPhase_FT_aggregate_arima_vector <- 
+  array(complex(real=0, imaginary=0), c(dim(temp_Data)[1], dim(temp_Data)[2]))
+dim(nilPhase_FT_aggregate_arima_vector)    # ;  head(nilPhase_FT_aggregate_arima_vector)
+# [1] 31 387
+IFT_NilPhase_FT_aggregate_arima_vector <- array(complex(), c(dim(temp_Data)[1], dim(temp_Data)[2]))
+
+#       Invert back to spacetime the 
+# FT_aggregate_arima_vector_country_ranking_df$magnitudes[ , i] signal with nil-phase
+IFT_NilPhase_FT_aggregate_arima_vector <- 
+  Re(kSpaceTransform(FT_aggregate_arima_vector_country_ranking_df$magnitudes, 
+                     TRUE, nilPhase_FT_aggregate_arima_vector))
+
+colnames(IFT_NilPhase_FT_aggregate_arima_vector) <-
+  colnames(aggregate_arima_vector_country_ranking_df)
+rownames(IFT_NilPhase_FT_aggregate_arima_vector) <-
+  rownames(aggregate_arima_vector_country_ranking_df)
+dim(IFT_NilPhase_FT_aggregate_arima_vector)
+dim(FT_aggregate_arima_vector_country_ranking_df$magnitudes)
+datatable(data.frame(colnames(IFT_NilPhase_FT_aggregate_arima_vector)),fillContainer = TRUE)
+# IFT_NilPhase_FT_aggregate_arima_vector[1:5, 1:4];  temp_Data[1:5, 1:4]
+
+# 2. Perform LASSO modeling on IFT_NilPhase_FT_aggregate_arima_vector; 
+# report param estimates and quality metrics AIC/BIC
+# library(forecast)
+set.seed(54321)
+cvLASSO_kime = cv.glmnet(data.matrix(IFT_NilPhase_FT_aggregate_arima_vector[ , -387]), 
+                         # IFT_NilPhase_FT_aggregate_arima_vector[ , 387], alpha = 1, parallel=TRUE)
+                         Y, alpha = 1, parallel=TRUE)
+plot(cvLASSO_kime)
+mtext("(Spacekime, Nil-phase) CV LASSO: Number of Nonzero (Active) Coefficients", 
+      side=3, line=2.5)
+
+# Identify top predictors and forecast the Y=Overall (OA) Country ranking outcome
+predLASSO_kime <-  predict(cvLASSO_kime, s = cvLASSO_kime$lambda.min, 
+                           newx = data.matrix(IFT_NilPhase_FT_aggregate_arima_vector[ , -387]))
+datatable(predLASSO_kime,fillContainer = TRUE)
+# testMSE_LASSO_kime <- mean((predLASSO_kime - IFT_NilPhase_FT_aggregate_arima_vector[ , 387])^2)
+# testMSE_LASSO_kime
+predLASSO_kime = predict(cvLASSO_kime, s = exp(1/3), # cvLASSO_kime$lambda.min, 
+                         newx = data.matrix(IFT_NilPhase_FT_aggregate_arima_vector[ , -387]))
+datatable(predLASSO_kime,fillContainer = TRUE)
+
+##################################Use only ARIMA effects, no SOCR meta-data#####
+set.seed(12345)
+cvLASSO_kime_lim = cv.glmnet(data.matrix(IFT_NilPhase_FT_aggregate_arima_vector[ , 1:(42*9)]), 
+                             Y, alpha = 1, parallel=TRUE)
+plot(cvLASSO_kime_lim)
+mtext("CV LASSO Nil-Phase (using only Timeseries data): Number of Nonzero (Active) Coefficients",
+      side=3, line=2.5)
+
+# Identify top predictors and forecast the Y=Overall (OA) Country ranking outcome
+predLASSO_kime_lim <-  predict(cvLASSO_kime_lim, s = 1, 
+                               newx = data.matrix(X[ , 1:(42*9)]))
+coefList_kime_lim <- coef(cvLASSO_kime_lim, s=1)
+coefList_kime_lim <- data.frame(coefList_kime_lim@Dimnames[[1]][coefList_kime_lim@i+1],coefList_kime_lim@x)
+names(coefList_kime_lim) <- c('Feature','EffectSize')
+arrange(coefList_kime_lim, -abs(EffectSize))[2:10, ]
+cor(Y, predLASSO_kime_lim[, 1])  # 0.1142824
+################################################################################
+
+# Plot Regression Coefficients: create variable names for plotting 
+# par(mar=c(2, 13, 1, 1))   # extra large left margin # par(mar=c(5,5,5,5))
+# varNames <- colnames(X); varNames; length(varNames)
+
+betaHatLASSO_kime = as.double(coef(cvLASSO_kime, s=cvLASSO_kime$lambda.min))
+#cvLASSO_kime$lambda.1se
+
+coefplot(betaHatLASSO_kime[377:386], sd = rep(0, 10), pch=0, cex.pts = 3, col="red", 
+         main = "(Spacekime) LASSO-Regularized Regression Coefficient Estimates",
+         varnames = varNames[377:386])
+
+datatable(varImp(cvLASSO_kime, lambda = cvLASSO_kime$lambda.min),fillContainer = TRUE)
+
+coefList_kime <- coef(cvLASSO_kime, s=1)  # 'lambda.min')
+coefList_kime <- data.frame(coefList_kime@Dimnames[[1]][coefList_kime@i+1], coefList_kime@x)
+names(coefList_kime) <- c('Feature','EffectSize')
+datatable(arrange(coefList_kime, -abs(EffectSize))[1:9, ],fillContainer = TRUE)
+#                 Feature  EffectSize
+#1           (Intercept) 26.069326257
+#2 Feature_12_ArimaVec_8 -8.662856430
+#3 Feature_11_ArimaVec_4  8.585283751
+#4 Feature_12_ArimaVec_4 -5.023601842
+#5 Feature_30_ArimaVec_4  2.242157842
+#6 Feature_26_ArimaVec_6  1.760267216
+#7 Feature_39_ArimaVec_5 -1.256101950
+#8 Feature_34_ArimaVec_5 -1.148865337
+#9 Feature_37_ArimaVec_2  0.001322367
+#     ARIMA-spacetime:     4=non-seasonal MA, 5=seasonal AR, 8=non-seasonal Diff
+#     ARIMA-spacekimeNil:  2=forecast_avg, 4=non-seasonal MA, 5=seasonal AR, 6=seasonal MA, 8=non-seasonal Diff
+#9 ARIMA-derived vector includes:
+# (1=ts_avg, 2=forecast_avg, 3=non-seasonal AR, 4=non-seasonal MA, 5=seasonal AR, 6=seasonal MA, 
+#  7=period, 8=non-seasonal Diff, 9=seasonal differences)
+
+coef(cvLASSO_kime, s = 1/5) %>%  ### "lambda.min") %>%
+  broom::tidy() %>%
+  filter(row != "(Intercept)") %>%
+  top_n(100, wt = abs(value)) %>%
+  ggplot(aes(value, reorder(row, value), color = value > 0)) +
+  geom_point(show.legend = FALSE, aes(size = abs(value))) +
+  ggtitle("(Spacekime) Top 9 salient features (LASSO penalty)") +
+  xlab("Effect-size") +
+  ylab(NULL)
+
+# pack a 31*3 DF with (predLASSO_kime, IFT_NilPhase_FT_aggregate_arima_vector_Y, Y)
+validation_kime <- cbind(predLASSO_kime[, 1], 
+                         IFT_NilPhase_FT_aggregate_arima_vector[ , 387], Y)  
+colnames(validation_kime) <- c("predLASSO_kime", "IFT_NilPhase_FT_Y", "Orig_Y")
+datatable(validation_kime,fillContainer = TRUE)
+
+# Prediction correlations: 
+cor(validation_kime[ , 1], validation_kime[, 2])  # Y=predLASSO_kime OA rank vs. kime_LASSO_pred:  0.99
+cor(validation_kime[ , 1], validation_kime[, 3])  # Y=predLASSO_kime OA rank vs. Orig_Y:  0.64
+
+# Plot observed Y (Overall Counry ranking) vs. LASSO (9-parameters) predicted Y^
+linFit1_kime <- lm(predLASSO_kime ~ validation_kime[ , 3])
+plot(predLASSO_kime ~ validation_kime[ , 3],
+     col="blue", xaxt='n', yaxt='n', pch = 16, cex=3,
+     xlab="Observed Country Overall Ranking", ylab="IFT_NilPhase predLASSO_kime",
+     main = sprintf("Observed (x) vs. IFT_NilPhase Predicted (y) Overall Country Ranking, cor=%.02f", 
+                    cor(validation_kime[ , 1], validation_kime[, 3])))
+abline(linFit1_kime, lwd=3, col="red")
+# abline(linFit1, lwd=3, col="green")
+
+
+##############################################
+# 3. Swap Feature Phases and then synthesize the data (reconstruction)
+# temp_Data <- aggregate_arima_vector_country_ranking_df
+swappedPhase_FT_aggregate_arima_vector <- FT_aggregate_arima_vector_country_ranking_df$phases
+dim(swappedPhase_FT_aggregate_arima_vector)    # ;  head(swappedPhase_FT_aggregate_arima_vector)
+# [1] 31 387
+IFT_SwappedPhase_FT_aggregate_arima_vector <- array(complex(), 
+                                                    c(dim(temp_Data)[1], dim(temp_Data)[2]))
+
+set.seed(12345)   # sample randomly Phase-columns for each of the 131 covariates (X)
+swappedPhase_FT_aggregate_arima_vector1 <- as.data.frame(cbind(
+  swappedPhase_FT_aggregate_arima_vector[ , 
+                                          sample(ncol(swappedPhase_FT_aggregate_arima_vector[ , 1:378]))],  # mix ARIMA signature phases
+  swappedPhase_FT_aggregate_arima_vector[ , 
+                                          sample(ncol(swappedPhase_FT_aggregate_arima_vector[ , 379:386]))],# mix the meta-data phases
+  swappedPhase_FT_aggregate_arima_vector[ , 387]))                          # add correct Outcome phase
+swappedPhase_FT_aggregate_arima_vector <- swappedPhase_FT_aggregate_arima_vector1
+
+colnames(swappedPhase_FT_aggregate_arima_vector) <- colnames(temp_Data)
+datatable(data.frame(colnames(swappedPhase_FT_aggregate_arima_vector)),fillContainer = TRUE)
+dim(swappedPhase_FT_aggregate_arima_vector)
+# 31 387
+
+#       Invert back to spacetime the 
+# FT_aggregate_arima_vector$magnitudes[ , i] signal with swapped-X-phases (Y-phase is fixed)
+IFT_SwappedPhase_FT_aggregate_arima_vector <- 
+  Re(kSpaceTransform(FT_aggregate_arima_vector_country_ranking_df$magnitudes, 
+                     TRUE, swappedPhase_FT_aggregate_arima_vector))
+
+colnames(IFT_SwappedPhase_FT_aggregate_arima_vector) <-
+  colnames(aggregate_arima_vector_country_ranking_df)
+rownames(IFT_SwappedPhase_FT_aggregate_arima_vector) <-
+  rownames(aggregate_arima_vector_country_ranking_df)
+dim(IFT_SwappedPhase_FT_aggregate_arima_vector)
+dim(FT_aggregate_arima_vector_country_ranking_df$magnitudes)
+datatable(data.frame(colnames(IFT_SwappedPhase_FT_aggregate_arima_vector)),fillContainer = TRUE)
+# IFT_SwappedPhase_FT_aggregate_arima_vector[1:5, 1:4];  temp_Data[1:5, 1:4]
+
+# 2. Perform LASSO modeling on IFT_SwappedPhase_FT_aggregate_arima_vector; 
+# report param estimates and quality metrics AIC/BIC
+set.seed(12345)
+cvLASSO_kime_swapped = 
+  cv.glmnet(data.matrix(IFT_SwappedPhase_FT_aggregate_arima_vector[ , -387]), 
+            # IFT_SwappedPhase_FT_aggregate_arima_vector[ , 387], alpha = 1, parallel=TRUE)
+            Y, alpha = 1, parallel=TRUE)
+plot(cvLASSO_kime_swapped)
+mtext("(Spacekime, Swapped-Phases) CV LASSO: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+
+##################################Use only ARIMA effects, no SOCR meta-data#####
+set.seed(12345)
+cvLASSO_kime_swapped_lim = cv.glmnet(data.matrix(
+  IFT_SwappedPhase_FT_aggregate_arima_vector[ , 1:(42*9)]), Y, alpha = 1, parallel=TRUE)
+plot(cvLASSO_kime_swapped_lim)
+mtext("CV LASSO Swapped-Phase (using only Timeseries data): Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+
+# Identify top predictors and forecast the Y=Overall (OA) Country ranking outcome
+predLASSO_kime_swapped_lim <-  predict(cvLASSO_kime_swapped_lim, 
+                                       s = cvLASSO_kime_swapped_lim$lambda.min, 
+                                       newx = data.matrix(IFT_SwappedPhase_FT_aggregate_arima_vector[ , 1:(42*9)]))
+coefList_kime_swapped_lim <- coef(cvLASSO_kime_swapped_lim, s='lambda.min')
+coefList_kime_swapped_lim <- data.frame(coefList_kime_swapped_lim@Dimnames[[1]][coefList_kime_swapped_lim@i+1],coefList_kime_swapped_lim@x)
+names(coefList_kime_swapped_lim) <- c('Feature','EffectSize')
+datatable(arrange(coefList_kime_swapped_lim, -abs(EffectSize))[2:10, ],fillContainer = TRUE)
+cor(Y, predLASSO_kime_swapped_lim[, 1])  # 0.86
+################################################################################
+
+
+# Identify top predictors and forecast the Y=Overall (OA) Country ranking outcome
+predLASSO_kime_swapped <-  predict(cvLASSO_kime_swapped, s = cvLASSO_kime_swapped$lambda.min, 
+                                   newx = data.matrix(IFT_SwappedPhase_FT_aggregate_arima_vector[ , -387]))
+# testMSE_LASSO_kime_swapped <- 
+#        mean((predLASSO_kime_swapped - IFT_SwappedPhase_FT_aggregate_arima_vector[ , 387])^2)
+# testMSE_LASSO_kime_swapped
+predLASSO_kime_swapped = predict(cvLASSO_kime_swapped, s = 3, 
+                                 newx = data.matrix(IFT_SwappedPhase_FT_aggregate_arima_vector[ , -387]))
+datatable(predLASSO_kime_swapped,fillContainer = TRUE)
+
+# Plot Regression Coefficients: create variable names for plotting 
+betaHatLASSO_kime_swapped = as.double(coef(cvLASSO_kime_swapped,
+                                           s=cvLASSO_kime_swapped$lambda.min))
+#cvLASSO_kime_swapped$lambda.1se
+
+coefplot(betaHatLASSO_kime_swapped[377:386], sd = rep(0, 10), pch=0, cex.pts = 3, col="red", 
+         main = "(Spacekime, Swapped-Phases) LASSO-Regularized Regression Coefficient Estimates",
+         varnames = varNames[377:386])
+
+datatable(varImp(cvLASSO_kime_swapped, lambda = cvLASSO_kime_swapped$lambda.min),fillContainer = TRUE)
+
+coefList_kime_swapped <- coef(cvLASSO_kime_swapped, s=3)    # 'lambda.min')
+coefList_kime_swapped <- data.frame(coefList_kime_swapped@Dimnames[[1]][coefList_kime_swapped@i+1], coefList_kime_swapped@x)
+names(coefList_kime_swapped) <- c('Feature','EffectSize')
+datatable(arrange(coefList_kime_swapped, -abs(EffectSize))[2:10, ],fillContainer = TRUE)
+#                 Feature  EffectSize
+#2  Feature_32_ArimaVec_6  3.3820076
+#3   Feature_1_ArimaVec_3  2.2133139
+#4  Feature_21_ArimaVec_4  1.5376447
+#5  Feature_22_ArimaVec_3  1.0546605
+#6  Feature_14_ArimaVec_5  0.7428693
+#7                     ED  0.6525794
+#8  Feature_24_ArimaVec_5  0.5987113
+#9  Feature_12_ArimaVec_5  0.3177650
+#10 Feature_37_ArimaVec_6  0.1598574
+#
+#     ARIMA-spacetime:        4=non-seasonal MA, 5=seasonal AR, 8=non-seasonal Diff
+#     ARIMA-spacekime_nill:   3=non-seasonal AR, 4=non-seasonal MA, 5=seasonal AR, 6=seasonal MA
+#    ARIMA-spacekime_swapped: 3=non-seasonal AR, 4=non-seasonal MA, 5=seasonal AR, 6=seasonal MA
+# 9 ARIMA-derived vector includes:
+# (1=ts_avg, 2=forecast_avg, 3=non-seasonal AR, 4=non-seasonal MA, 5=seasonal AR, 6=seasonal MA, 
+#  7=period, 8=non-seasonal Diff, 9=seasonal differences)
+
+coef(cvLASSO_kime_swapped, s = 3) %>%  # "lambda.min") %>%
+  broom::tidy() %>%
+  filter(row != "(Intercept)") %>%
+  top_n(100, wt = abs(value)) %>%
+  ggplot(aes(value, reorder(row, value), color = value > 0)) +
+  geom_point(show.legend = FALSE, aes(size = abs(value))) +
+  ggtitle("(Spacekime, Swapped-Phases) Top 9 salient features (LASSO penalty)") +
+  xlab("Effect-size") +
+  ylab(NULL)
+
+# pack a 31*4 DF with (predLASSO_kime, IFT_NilPhase_FT_aggregate_arima_vector_Y, 
+#                      IFT_SwappedPhase_FT_aggregate_arima_vector_Y, Y)
+validation_kime_swapped <- cbind(predLASSO_lim[, 1], 
+                                 predLASSO_kime[ , 1], predLASSO_kime_swapped[ , 1], Y)  
+colnames(validation_kime_swapped) <- c("predLASSO (spacetime)", "predLASSO_IFT_NilPhase",
+                                       "predLASSO_IFT_SwappedPhase", "Orig_Y")
+datatable(data.frame(validation_kime_swapped),fillContainer = TRUE)
+dim(validation_kime_swapped)
+
+# Prediction correlations: 
+cor(validation_kime_swapped[ , 3], validation_kime_swapped[, 4])  
+# predLASSO_IFT_SwappedPhase OA rank vs. predLASSO_spacekime:  0.7
+cor(validation_kime_swapped[ , 1], validation_kime_swapped[, 3])  
+# predLASSO (spacetime) vs.  predLASSO_IFT_SwappedPhase OA rank:  0.83
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+# Plot observed Y (Overall Counry ranking) vs. LASSO (9-parameters) predicted Y^
+linFit1_kime_swapped <- lm(validation_kime_swapped[ , 4] ~ predLASSO)
+plot(validation_kime_swapped[ , 4] ~ predLASSO,
+     col="blue", xaxt='n', yaxt='n', pch = 16, cex=3,
+     xlab="predLASSO_spacekime Country Overall Ranking", ylab="predLASSO_IFT_SwappedPhase_FT_Y",
+     main = sprintf("Spacetime Predicted (x) vs. Kime IFT_SwappedPhase_FT_Y (y) Overall Country Ranking, cor=%.02f", 
+                    cor(validation_kime_swapped[ , 3], validation_kime_swapped[, 4])))
+abline(linFit1_kime_swapped, lwd=3, col="red")
+#abline(linFit1_kime, lwd=3, col="green")
+
+# Plot Spacetime LASSO forecasting
+# Plot observed Y (Overall Counry ranking) vs. LASSO (9-parameters) predicted Y^
+linFit1_spacetime <- lm(validation_kime_swapped[ , 1] ~ validation_kime_swapped[ , 4])
+plot(validation_kime_swapped[ , 1] ~ validation_kime_swapped[ , 4],
+     col="blue", xaxt='n', yaxt='n', pch = 16, cex=3,
+     xlab="Observed Country Overall Ranking", ylab="predLASSO_spacetime",
+     main = sprintf("Spacetime Predicted (y) vs. Obaserved (x) Overall Country Ranking, cor=%.02f", 
+                    cor(validation_kime_swapped[ , 1], validation_kime_swapped[, 4])))
+abline(linFit1_spacetime, lwd=3, col="red")
+
+# test with using swapped-phases LASSO estiumates
+linFit1_spacekime <- lm(validation_kime_swapped[ , 3] ~ validation_kime_swapped[ , 4])
+plot(validation_kime_swapped[ , 3] ~ validation_kime_swapped[ , 4],
+     col="blue", xaxt='n', yaxt='n', pch = 16, cex=3,
+     xlab="Observed Country Overall Ranking", ylab="predLASSO_spacekime Swapped-Phases",
+     main = sprintf("Spacekime Predicted, Swapped-Phases (y) vs. Obaserved (x) Overall Country Ranking, cor=%.02f", 
+                    cor(validation_kime_swapped[ , 3], validation_kime_swapped[, 4])))
+abline(linFit1_spacekime, lwd=3, col="red")
+
+# add Top_30_Ranking_Indicator
+validation_kime_swapped <- as.data.frame(cbind(validation_kime_swapped, ifelse (validation_kime_swapped[,4]<=30, 1, 0)))
+colnames(validation_kime_swapped)[5] <- "Top30Rank"
+head(validation_kime_swapped)
+
+# Spacetime LASSO modeling
+myPlotSpacetime <- ggplot(as.data.frame(validation_kime_swapped), aes(x=Orig_Y,
+                                                                      y=`predLASSO (spacetime)`, label=rownames(validation_kime_swapped))) +
+  geom_point() +
+  # Color by groups
+  # geom_text(aes(color=factor(rownames(validation_kime_swapped)))) +
+  geom_label_repel(aes(label = rownames(validation_kime_swapped),
+                       fill = factor(Top30Rank)), color = 'black', size = 5,  
+                   point.padding = unit(0.3, "lines")) +
+  # theme(legend.position = "bottom") +
+  theme(legend.position = c(0.1, 0.9), 
+        legend.text = element_text(colour="black", size=12, face="bold"),
+        legend.title = element_text(colour="black", size=14, face="bold")) +
+  scale_fill_discrete(name = "Country Overall Ranking", 
+                      labels = c("Below 30 Rank", "Top 30 Rank")) +
+  labs(title=sprintf("Spacetime LASSO Prediction (y) vs. Observed (x) Overall Country Ranking, cor=%.02f",  cor(validation_kime_swapped[ , 1], validation_kime_swapped[, 4])),
+       x ="Observed Overall Country Ranking (1 is 'best')", 
+       y = "Spacetime LASSO Rank Forecasting")
+myPlotSpacetime
+
+# NIL-PHASE KIME reconstruction
+myPlotNilPhase <- ggplot(as.data.frame(validation_kime_swapped), aes(x=Orig_Y,
+                                                                     y=predLASSO_kime, label=rownames(validation_kime_swapped))) +
+  geom_point() +
+  # Color by groups
+  # geom_text(aes(color=factor(rownames(validation_kime_swapped)))) +
+  geom_label_repel(aes(label = rownames(validation_kime_swapped),
+                       fill = factor(Top30Rank)), color = 'black', size = 5,  
+                   point.padding = unit(0.3, "lines")) +
+  # theme(legend.position = "bottom") +
+  theme(legend.position = c(0.1, 0.9), 
+        legend.text = element_text(colour="black", size=12, face="bold"),
+        legend.title = element_text(colour="black", size=14, face="bold")) +
+  scale_fill_discrete(name = "Country Overall Ranking", 
+                      labels = c("Below 30 Rank", "Top 30 Rank")) +
+  labs(title=sprintf("Spacekime LASSO Predicted, Nil-Phases, (y) vs. Observed (x) Overall Country Ranking, cor=%.02f",  cor(validation_kime_swapped[ , 2], validation_kime_swapped[, 4])),
+       x ="Observed Overall Country Ranking (1 is 'best')", 
+       y = "Spacekime LASSO Predicted, using Nil-Phases")
+myPlotNilPhase
+
+# SWAPPED PHASE KIME reconstruction
+myPlotSwappedPhase <- ggplot(as.data.frame(validation_kime_swapped), aes(x=Orig_Y,
+                                                                         y=predLASSO_kime_swapped, label=rownames(validation_kime_swapped))) +
+  geom_point() +
+  # Color by groups
+  # geom_text(aes(color=factor(rownames(validation_kime_swapped)))) +
+  geom_label_repel(aes(label = rownames(validation_kime_swapped),
+                       fill = factor(Top30Rank)), color = 'black', size = 5,  
+                   point.padding = unit(0.3, "lines")) +
+  # theme(legend.position = "bottom") +
+  theme(legend.position = c(0.1, 0.9), 
+        legend.text = element_text(colour="black", size=12, face="bold"),
+        legend.title = element_text(colour="black", size=14, face="bold")) +
+  scale_fill_discrete(name = "Country Overall Ranking", 
+                      labels = c("Below 30 Rank", "Top 30 Rank")) +
+  labs(title=sprintf("Spacekime LASSO Predicted, Swapped-Phases, (y) vs. Observed (x) Overall Country Ranking, cor=%.02f",  cor(validation_kime_swapped[ , 3], validation_kime_swapped[, 4])),
+       x ="Observed Overall Country Ranking (1 is 'best')", 
+       y = "Spacekime LASSO Predicted, using Swapped-Phases")
+myPlotSwappedPhase
+
+countryNames[11]<-"Germany"
+aggregateResults <- (rbind(cbind(as.character(countryNames), "predLASSO_spacetime", as.numeric(predLASSO)), 
+                           cbind(as.character(countryNames), "predLASSO_lim", predLASSO_lim),
+                           cbind(as.character(countryNames), "predLASSO_nil", predLASSO_kime),
+                           cbind(as.character(countryNames), "predLASSO_swapped", predLASSO_kime_swapped),
+                           cbind(as.character(countryNames), "observed", Y)
+))
+aggregateResults <- data.frame(aggregateResults[ , -3], as.numeric(aggregateResults[,3]))
+colnames(aggregateResults) <- c("country", "estimate_method", "ranking")
+ggplot(aggregateResults, aes(x=country, y=ranking, color=estimate_method)) +
+  geom_point(aes(shape=estimate_method, color=estimate_method, size=estimate_method)) + geom_point(size = 5) +
+  geom_line(data = aggregateResults[aggregateResults$estimate_method == "observed", ], 
+            aes(group = estimate_method), size=2, linetype = "dashed") +
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5)) +
+  # theme(legend.position = "bottom") +
+  # scale_shape_manual(values = as.factor(aggregateResults$estimate_method)) +
+  theme(text = element_text(size = 15), legend.position = c(0.3, 0.85), 
+        axis.text=element_text(size=16),
+        legend.text = element_text(colour="black", size=12, face="bold"),
+        legend.title = element_text(colour="black", size=14, face="bold"))
+#  + scale_fill_discrete(
+#    name="Country Overall Ranking",
+#    breaks=c("predLASSO_spacetime", "predLASSO_lim", "predLASSO_nil", "predLASSO_swapped", "observed"),
+#    labels=c(sprintf("predLASSO_spacetime LASSO Predicted (386), cor=%.02f",  cor(predLASSO, Y)),
+#             sprintf("predLASSO_lim LASSO Predicted (378), cor=%.02f",  cor(predLASSO_lim, Y)), 
+#             sprintf("predLASSO_nil (spacekime) LASSO Predicted, cor=%.02f",  cor(predLASSO_kime, Y)), 
+#             sprintf("predLASSO_swapped (spacekime) LASSO Predicted, cor=%.02f",  cor(predLASSO_kime_swapped, Y)), 
+#             "observed"))
+```
+
+### Weak-signal Analytics
+
+Using only the 378 ARIMA signatures for the prediction (out of the total of 386 features).
+
+#### Space-Time Analytics
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Normal",Seed = 54321,lam = 1,result = 1)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Normal",Seed = 54321,lam = 1,result = 2)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Normal",Seed = 54321,lam = 1,result = 3)
+```
+
+**BOOK VI-178 Figure 5.18**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Normal",Seed = 54321,lam = 1,result = 4)
+```
+
+```{r Figure 5.18A Output, echo=FALSE}
+# Figure 5.18A Output
+png("../Figures/Fig5.18A.png",width = 1600,height = 900, res = 100)
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Normal",Seed = 54321,lam = 1,result = 4)
+dev.off()
+```
+
+
+**BOOK VI-178 Figure 5.18**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+WN_SKR<-Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Normal",Seed = 54321,lam = 1,result = 5)
+WN_SKR$dimX
+datatable(WN_SKR$Coef_first9,fillContainer = TRUE)
+WN_SKR$COR_pred_true
+datatable(WN_SKR$LASSO_Varimp,fillContainer = TRUE)
+WN_SKR$dimLASSO
+datatable(WN_SKR$LASSO_part_feature,fillContainer = TRUE)
+datatable(WN_SKR$LASSO_rename_feature,fillContainer = TRUE)
+WN_SKR$pred_COR
+```
+
+
+
+#### Space-Kime Analytics
+
+**Nil-Phase Synthesis** and LASSO model estimation ...
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Nil",Seed = 54321,lam = 1,result = 1)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Nil",Seed = 54321,lam = 1,result = 2)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Nil",Seed = 54321,lam = 1,result = 3)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=20,out.width=2000,out.height=2400}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Nil",Seed = 54321,lam = 1,result = 6)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Wnil_SKR_feat<-Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Nil",Seed = 54321,lam = 1,result = 7)
+Wnil_SKR_feat[1]
+Wnil_SKR_feat[2]
+Wnil_SKR_feat[3]
+datatable(data.frame(features=Wnil_SKR_feat[4]),fillContainer = TRUE)
+```
+
+**BOOK VI-178 Figure 5.18**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Nil",Seed = 54321,lam = 1,result = 4)
+```
+
+```{r Figure 5.18B Output, echo=FALSE}
+# Figure 5.18B Output
+png("../Figures/Fig5.18B.png",width = 1600,height = 900, res = 100)
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Nil",Seed = 54321,lam = 1,result = 4)
+dev.off()
+```
+
+
+**BOOK VI-178 Figure 5.18**
+```{r,warning=FALSE}
+Wnil_SKR<-Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Nil",Seed = 54321,lam = 1,result = 5)
+Wnil_SKR$dimX
+datatable(Wnil_SKR$Coef_first9,fillContainer = TRUE)
+Wnil_SKR$COR_pred_true
+datatable(Wnil_SKR$LASSO_Varimp,fillContainer = TRUE)
+Wnil_SKR$dimLASSO
+datatable(Wnil_SKR$LASSO_part_feature,fillContainer = TRUE)
+datatable(Wnil_SKR$LASSO_rename_feature,fillContainer = TRUE)
+Wnil_SKR$pred_COR
+```
+
+**Swapped Feature Phases** and then synthesize the data (reconstruction)
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Swap",Seed = 54321,lam = 1,result = 1)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Swap",Seed = 54321,lam = 1,result = 2)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Swap",Seed = 54321,lam = 1,result = 3)
+```
+
+**BOOK VI-178 Figure 5.18**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Swap",Seed = 54321,lam = 1,result = 4)
+```
+
+```{r Figure 5.18C Output, echo=FALSE}
+# Figure 5.18C Output
+png("../Figures/Fig5.18C.png",width = 1600,height = 900, res = 100)
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Swap",Seed = 54321,lam = 1,result = 4)
+dev.off()
+```
+
+
+**BOOK VI-178 Figure 5.18**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+WS_SKR<-Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Weak",phase = "Swap",Seed = 54321,lam = 1,result = 5)
+WS_SKR$dimX
+datatable(WS_SKR$Coef_first9,fillContainer = TRUE)
+WS_SKR$COR_pred_true
+datatable(WS_SKR$LASSO_Varimp,fillContainer = TRUE)
+WS_SKR$dimLASSO
+datatable(WS_SKR$LASSO_part_feature,fillContainer = TRUE)
+datatable(WS_SKR$LASSO_rename_feature,fillContainer = TRUE)
+WS_SKR$pred_COR
+```
+
+### Stronger Signal Analytics
+
+Using all 386 features (378 ARIMA signatures + 8 meta-data).
+
+#### Space-Time Analytics
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Normal",Seed = 54321,lam = 1,result = 1)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Normal",Seed = 54321,lam = 1,result = 2)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Normal",Seed = 54321,lam = 1,result = 3)
+```
+
+**BOOK VI-178 Figure 5.19**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Normal",Seed = 54321,lam = 1,result = 4)
+```
+
+```{r Figure 5.19A Output, echo=FALSE}
+# Figure 5.19A Output
+png("../Figures/Fig5.19A.png",width = 1600,height = 900, res = 100)
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Normal",Seed = 54321,lam = 1,result = 4)
+dev.off()
+```
+
+
+**BOOK VI-178 Figure 5.19**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+SN_SKR<-Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Normal",Seed = 54321,lam = 1,result = 5)
+SN_SKR$dimX
+datatable(SN_SKR$Coef_first9,fillContainer = TRUE)
+SN_SKR$COR_pred_true
+datatable(SN_SKR$LASSO_Varimp,fillContainer = TRUE)
+SN_SKR$dimLASSO
+datatable(SN_SKR$LASSO_part_feature,fillContainer = TRUE)
+datatable(SN_SKR$LASSO_rename_feature,fillContainer = TRUE)
+SN_SKR$pred_COR
+```
+
+#### Space-Kime Analytics
+
+**Nil-Phase Synthesis** and LASSO model estimation ...
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Nil",Seed = 54321,lam = 1,result = 1)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Nil",Seed = 54321,lam = 1,result = 2)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Nil",Seed = 54321,lam = 1,result = 3)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=20,out.width=2000,out.height=2400}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Nil",Seed = 54321,lam = 1,result = 6)
+png("P2_chunk32_line835.png",width = 2000,height = 2400,res = 120)
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Nil",Seed = 54321,lam = 1,result = 6)
+dev.off()
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Snil_SKR_feat<-Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Nil",Seed = 54321,lam = 1,result = 7)
+Snil_SKR_feat[1]
+Snil_SKR_feat[2]
+Snil_SKR_feat[3]
+datatable(data.frame(features=Snil_SKR_feat[4]),fillContainer = TRUE)
+```
+
+**BOOK VI-178 Figure 5.19**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Nil",Seed = 54321,lam = 1,result = 4)
+```
+
+```{r Figure 5.19B Output, echo=FALSE}
+# Figure 5.19B Output
+png("../Figures/Fig5.19B.png",width = 1600,height = 900, res = 100)
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Nil",Seed = 54321,lam = 1,result = 4)
+dev.off()
+```
+
+
+**BOOK VI-178 Figure 5.19**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Snil_SKR<-Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Nil",Seed = 54321,lam = 1,result = 5)
+Snil_SKR$dimX
+datatable(Snil_SKR$Coef_first9,fillContainer = TRUE)
+Snil_SKR$COR_pred_true
+datatable(Snil_SKR$LASSO_Varimp,fillContainer = TRUE)
+Snil_SKR$dimLASSO
+datatable(Snil_SKR$LASSO_part_feature,fillContainer = TRUE)
+datatable(Snil_SKR$LASSO_rename_feature,fillContainer = TRUE)
+Snil_SKR$pred_COR
+```
+
+**Swapped Feature Phases** and then synthesize the data (reconstruction)
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Swap",Seed = 54321,lam = 1,result = 1)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Swap",Seed = 54321,lam = 1,result = 2)
+```
+
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Swap",Seed = 54321,lam = 1,result = 3)
+```
+
+**BOOK VI-178 Figure 5.19**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Swap",Seed = 54321,lam = 1,result = 4)
+```
+
+```{r Figure 5.19C Output, echo=FALSE}
+# Figure 5.19C Output
+png("../Figures/Fig5.19C.png",width = 1600,height = 900, res = 100)
+Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Swap",Seed = 54321,lam = 1,result = 4)
+dev.off()
+```
+
+
+**BOOK VI-178 Figure 5.19**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+SS_SKR<-Spacetime_Kime_Rank(aggregate_arima_vector_country_ranking_df,aggregate_arima_vector_country_ranking_df$OA,signal = "Strong",phase = "Swap",Seed = 54321,lam = 1,result = 5)
+SS_SKR$dimX
+datatable(SS_SKR$Coef_first9,fillContainer = TRUE)
+SS_SKR$COR_pred_true
+datatable(SS_SKR$LASSO_Varimp,fillContainer = TRUE)
+SS_SKR$dimLASSO
+datatable(SS_SKR$LASSO_part_feature,fillContainer = TRUE)
+datatable(SS_SKR$LASSO_rename_feature,fillContainer = TRUE)
+SS_SKR$pred_COR
+```
+
+### Overall Plots
+
+**BOOK VI-178 Figure 5.20**
+```{r,warning=FALSE,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+myPlotNilPhase <- ggplot(as.data.frame(validation_kime_swapped), aes(x=Orig_Y,
+            y=predLASSO_kime, label=rownames(validation_kime_swapped))) +
+     geom_smooth(method='lm') +
+     geom_point() +
+     # Color by groups
+     # geom_text(aes(color=factor(rownames(validation_kime_swapped)))) +
+     geom_label_repel(aes(label = rownames(validation_kime_swapped),
+                    fill = factor(Top30Rank)), color = 'black', size = 5,  
+                    point.padding = unit(0.3, "lines")) +
+     # theme(legend.position = "bottom") +
+     theme(legend.position = c(0.1, 0.9), 
+           legend.text = element_text(colour="black", size=12, face="bold"),
+           legend.title = element_text(colour="black", size=14, face="bold")) +
+     scale_fill_discrete(name = "Country Overall Ranking", 
+                         labels = c("Below 30 Rank", "Top 30 Rank")) +
+     labs(title=sprintf("Spacekime LASSO Predicted, Nil-Phases, (y) vs. Observed (x) Overall Country Ranking, cor=%.02f",  cor(validation_kime_swapped[ , 2], validation_kime_swapped[, 4])),
+          x ="Observed Overall Country Ranking (1 is 'best')", 
+          y = "Spacekime LASSO Predicted, using Nil-Phases")
+myPlotNilPhase
+countryNames[11]<-"Germany"
+aggregateResults <- (rbind(cbind(as.character(countryNames), "predLASSO_spacetime_386", as.numeric(predLASSO)), 
+                     cbind(as.character(countryNames), "predLASSO_spacetime_378", predLASSO_lim),
+                     cbind(as.character(countryNames), "predLASSO_nil_kime_386", predLASSO_nil_kime_all),
+                     cbind(as.character(countryNames), "predLASSO_nil_kime_378", predLASSO_nil_kime),
+                     cbind(as.character(countryNames), "predLASSO_swapped_kime_386", predLASSO_kime_swapped),
+                     cbind(as.character(countryNames), "predLASSO_swapped_kime_378", predLASSO_kime_swapped_lim),
+                     cbind(as.character(countryNames), "observed", Y)
+                ))
+aggregateResults <- data.frame(aggregateResults[ , -3], as.numeric(aggregateResults[,3]))
+colnames(aggregateResults) <- c("country", "estimate_method", "ranking")
+ggplot(aggregateResults, aes(x=country, y=ranking, color=estimate_method)) +
+  geom_point(aes(shape=estimate_method, color=estimate_method, size=estimate_method)) + 
+  geom_point(size = 5) +
+  geom_line(data = aggregateResults[aggregateResults$estimate_method == "observed", ], 
+            aes(group = estimate_method), size=2, linetype = "dashed") +
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5)) +
+  # theme(legend.position = "bottom") +
+  # scale_shape_manual(values = as.factor(aggregateResults$estimate_method)) +
+  # scale_color_gradientn(colours = rainbow(7)) +
+  theme(text = element_text(size = 15), legend.position = c(0.3, 0.85), 
+           axis.text=element_text(size=16),
+           legend.text = element_text(colour="black", size=12, face="bold"),
+           legend.title = element_text(colour="black", size=14, face="bold"))
+
+```
+
+```{r Figure 5.20 Output, echo=FALSE,warning=FALSE}
+# Figure 5.20 Output
+png("../Figures/Fig5.20.png",width = 1600,height = 900, res = 100)
+ggplot(aggregateResults, aes(x=country, y=ranking, color=estimate_method)) +
+  geom_point(aes(shape=estimate_method, color=estimate_method, size=estimate_method)) + 
+  geom_point(size = 5) +
+  geom_line(data = aggregateResults[aggregateResults$estimate_method == "observed", ], 
+            aes(group = estimate_method), size=2, linetype = "dashed") +
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5)) +
+  # theme(legend.position = "bottom") +
+  # scale_shape_manual(values = as.factor(aggregateResults$estimate_method)) +
+  # scale_color_gradientn(colours = rainbow(7)) +
+  theme(text = element_text(size = 15), legend.position = c(0.3, 0.85), 
+           axis.text=element_text(size=16),
+           legend.text = element_text(colour="black", size=12, face="bold"),
+           legend.title = element_text(colour="black", size=14, face="bold"))
+dev.off()
+```
+
+#Appendix
+
+All functions used in this part
+
+##completeHomologousX_features()
+```{r,warning=FALSE}
+#'Testing homologous of features
+#'
+#' General function that ensures the XReg predictors for ALL 31 EU countries are homologous
+#'
+#'@param list_of_dfs a list of datasets of different countries
+completeHomologousX_features <- function (list_of_dfs) {
+  # delete features that are missing at all time points
+  for (j in 1:length(list_of_dfs)) {
+    print(paste0("Pre-processing Country: ...", countryNames[j], "... "))
+    data = list_of_dfs[[j]]
+    data = data[ , colSums(is.na(data)) != nrow(data)]%>%
+    select(-time, -country)%>%
+    as.matrix()%>%
+    cleardata()->DataMatrix
+    DataMatrix = DataMatrix[ , colSums(is.na(DataMatrix)) == 0] # remove features with only 1 value
+    DataMatrix = DataMatrix[ , colSums(DataMatrix) != 0] %>% # remove features with all values=0
+    # Supersample 72 --*5--> 360 timepoints 
+    splinecreate()%>%
+    as.data.frame()->DataSuperSample # super-Sample the data
+    # remove some of features  
+    DataSuperSample = DataSuperSample[, -c(50:80)]; dim(X)  # 360 167
+    # ensure full-rank design matrix, DataSuperSample
+    DataSuperSample <- 
+      DataSuperSample[ , qr(DataSuperSample)$pivot[seq_len(qr(DataSuperSample)$rank)]]
+    print(paste0("dim()=(", dim(DataSuperSample)[1], ",", dim(DataSuperSample)[2], ") ..."))
+    # update the current DF/Country
+    list_of_dfs_CommonFeatures[[j]] <- DataSuperSample
+  }
+  
+  # Identify All Xreg features that are homologous (same feature columns) across All 31 countries
+  # Identify Common Columns (freatures)
+  comCol <- Reduce(intersect, lapply(list_of_dfs_CommonFeatures, colnames))
+  list_of_dfs_CommonFeatures <- lapply(list_of_dfs_CommonFeatures, function(x) x[comCol])
+  
+  for (j in 1:length(list_of_dfs_CommonFeatures)) {
+    list_of_dfs_CommonFeatures[[j]] <- subset(list_of_dfs_CommonFeatures[[j]], select = comCol)
+    print(paste0("dim(", countryNames[j], ")=(", dim(list_of_dfs_CommonFeatures[[j]])[1], 
+                 ",", dim(list_of_dfs_CommonFeatures[[j]])[2], ")!"))  # 72 * 197
+  }
+  return(list_of_dfs_CommonFeatures)
+}
+```
+
+##index2CountryFeature()
+```{r,warning=FALSE}
+#' Maps to convert between 1D indices
+#'
+#'@param indx Indicate the feature you wish to see after transfering to 1D index
+#'@return return the original country and feature code of the feature you wish to show
+index2CountryFeature <- function(indx=1) { 
+  if (indx<1 | indx>length(arimaModels_ARMA_coefs)) {
+    cat("Index out of bounds: indx=", indx, "; must be between 1 and ", 
+        length(arimaModels_ARMA_coefs), " ... Exiting ...")
+    return (NULL)
+  } else { 
+    feature = (indx-1) %% (dim(list_of_dfs_CommonFeatures[[1]])[2])
+    country = floor((indx - feature)/(dim(list_of_dfs_CommonFeatures[[1]])[2]))
+    return(list("feature"=(feature+1), "country"=(country+1)))  }
+}
+```
+
+##countryFeature2Index()
+```{r,warning=FALSE}
+#'Transfer country and feature code to 1D index
+#'
+#'An opposite procedure of function "index2CountryFeature"
+#'@param countryIndx indicate the country you wish to transfer 
+#'@param featureIndx indicate the feature you wish to transfer
+countryFeature2Index <- function(countryIndx=1, featureIndx=1) { 
+  if (countryIndx<1 | countryIndx>(dim(list_of_dfs_CommonFeatures[[1]])[1]) |
+      featureIndx<1 | featureIndx>(dim(list_of_dfs_CommonFeatures[[1]])[2])) {
+    cat("Indices out of bounds: countryIndx=", countryIndx, "; featureIndx=", featureIndx, "; Exiting ...")
+    return (NULL)
+  } else { return (featureIndx + (countryIndx-1)*(dim(list_of_dfs_CommonFeatures[[1]])[2])) }
+}
+```
+
+##coef_plot()
+```{r,warning=FALSE}
+#Cleaned in another file
+
+# Plotting the coefficience
+coef_plot <- function(betahat, varn, plotname) {
+  betahat<-betahat[-1]
+  P <- coefplot(betahat[which(betahat!=0)], sd = rep(0, length(betahat[which(betahat!=0)])), 
+                pch=0, cex.pts = 3, col="red", main = plotname, varnames = varn[which(betahat!=0)])
+  return(P)
+}
+
+# Plotting the coefficience for those two methods
+findfeatures <- function(lassobeta, ridgebeta=NULL) {
+  lassobeta<-lassobeta[-1]
+  feat1 <- which(lassobeta!=0)
+  features <- feat1
+  if (!is.null(ridgebeta)) {
+    ridgebeta<-ridgebeta[-1]
+    feat2 <- order(abs(ridgebeta),decreasing = TRUE)[1:10]
+    features <- union(feat1, feat2)
+  }
+  return(features)
+}
+
+varImp <- function(object, lambda = NULL, ...) {
+  ## skipping a few lines
+  beta <- predict(object, s = lambda, type = "coef")
+  if(is.list(beta)) {
+    out <- do.call("cbind", lapply(beta, function(x) x[,1]))
+    out <- as.data.frame(out)
+    s <- rowSums(out)
+    out <- out[which(s)!=0,,drop=FALSE]
+  } else  {
+    out<-data.frame(Overall = beta[,1])
+    out<-out[which(out!=0),,drop=FALSE]
+  }
+  out <- abs(out[rownames(out) != "(Intercept)",,drop = FALSE])
+  out
+}
+```
+
+##Spacetime_Kime_Rank()
+```{r,warning=FALSE}
+Spacetime_Kime_Rank <- function(X,Y,signal="Weak",phase="Normal",result=1,Seed=4321,lam="min") {
+  X = X[ , colSums(is.na(X)) == 0]
+  if(signal=="Weak"){
+    X<-X[,1:378]
+  }
+  if(signal=="Strong"){
+    X<-X[,1:386]
+  }
+  if(phase=="Nil"){
+    FT_aggregate_arima_vector_country_ranking_df <- 
+      kSpaceTransform(aggregate_arima_vector_country_ranking_df, inverse = FALSE, reconPhases = NULL) 
+    if(result==6){
+      return(plotPhaseDistributions(FT_aggregate_arima_vector_country_ranking_df,
+                             colnames(aggregate_arima_vector_country_ranking_df), size=4, cex=0.1))
+    }
+    IFT_FT_aggregate_arima_vector_country_ranking_df <- 
+      kSpaceTransform(FT_aggregate_arima_vector_country_ranking_df$magnitudes, 
+                      TRUE, FT_aggregate_arima_vector_country_ranking_df$phases)
+    if(result==7){
+    return(PS_ARIMAX_remodel(aggregate_arima_vector_country_ranking_df[,1:ncol(aggregate_arima_vector_country_ranking_df)-1],
+                      Y,NULL,result = "reconstruct",rename_Y = "Yvec")[1:4])
+    }
+    IFT_NilPhase_FT_aggregate_arima_vector<-PS_ARIMAX_remodel(aggregate_arima_vector_country_ranking_df[,
+        1:ncol(aggregate_arima_vector_country_ranking_df)-1],Y,NULL,result = "reconstruct",rename_Y = "Yvec")[[6]]
+    rownames(IFT_NilPhase_FT_aggregate_arima_vector)<-rownames(X)
+  }
+  if(phase=="Swap"){
+    FT_aggregate_arima_vector_country_ranking_df <- 
+      kSpaceTransform(aggregate_arima_vector_country_ranking_df, inverse = FALSE, reconPhases = NULL) 
+    swappedPhase_FT_aggregate_arima_vector <- FT_aggregate_arima_vector_country_ranking_df$phases
+    IFT_SwappedPhase_FT_aggregate_arima_vector <- array(complex(), c(dim(temp_Data)[1], dim(temp_Data)[2]))
+    set.seed(Seed)   # sample randomly Phase-columns for each of the 131 covariates (X)
+    swappedPhase_FT_aggregate_arima_vector1 <- as.data.frame(cbind(
+      swappedPhase_FT_aggregate_arima_vector[ , 
+                                              sample(ncol(swappedPhase_FT_aggregate_arima_vector[ , 1:378]))],  # mix ARIMA signature phases
+      swappedPhase_FT_aggregate_arima_vector[ , 
+                                              sample(ncol(swappedPhase_FT_aggregate_arima_vector[ , 379:386]))],# mix the meta-data phases
+      swappedPhase_FT_aggregate_arima_vector[ , 387]))                          # add correct Outcome phase
+    swappedPhase_FT_aggregate_arima_vector <- swappedPhase_FT_aggregate_arima_vector1
+    
+    colnames(swappedPhase_FT_aggregate_arima_vector) <- colnames(temp_Data)
+  }
+  
+    text0<-dim(X)
+    set.seed(Seed)
+    if(phase=="Normal"){
+      Xmat<-X
+      CVlassotext<-c("CV LASSO (using only Timeseries data): Number of Nonzero (Active) Coefficients")
+      result2text<-c("Top 9 salient features (LASSO penalty)")
+    }
+    if(phase=="Nil"){
+      Xmat<-IFT_NilPhase_FT_aggregate_arima_vector
+      CVlassotext<-c("(Spacekime, Nil-phase) CV LASSO: Number of Nonzero (Active) Coefficients")
+      result2text<-c("(Spacekime) Top 9 salient features (LASSO penalty)")
+    }
+    if(phase=="Swap"){
+      Xmat<-swappedPhase_FT_aggregate_arima_vector
+      CVlassotext<-c("(Spacekime, Swapped-Phases) CV LASSO: Number of Nonzero (Active) Coefficients")
+      result2text<-c("(Spacekime, Swapped-Phases) Top 9 salient features (LASSO penalty)")
+    }
+    CVlasso<-cv.glmnet(data.matrix(Xmat[ , 1:ncol(Xmat)]), Y, alpha = 1, parallel=TRUE)
+    if(result==1){
+    plot(CVlasso)
+    mtext(CVlassotext, side=3, line=2.5)
+    }
+    PREDlasso<-predict(CVlasso,s=ifelse(lam=="min",CVlasso$lambda.min,lam),newx=data.matrix(Xmat[,1:ncol(Xmat)]))
+    Coeflist<-coef(CVlasso,s=ifelse(lam=="min",CVlasso$lambda.min,lam))
+    Coeflist <- data.frame(Coeflist@Dimnames[[1]][Coeflist@i+1],Coeflist@x)
+    names(Coeflist) <- c('Feature','EffectSize')
+    text1<-arrange(Coeflist, -abs(EffectSize))[2:10, ] ##This place Normal and Nil phase are not the same. See through it.
+    text2<-cor(Y, predLASSO_lim[, 1])
+    text3<-varImp(CVlasso, lambda = ifelse(lam=="min",CVlasso$lambda.min,lam))
+    if(result==2){
+      COEFplot<-coef(CVlasso, s = ifelse(lam=="min",CVlasso$lambda.min,lam)) %>%  # "lambda.min"
+        broom::tidy() %>%
+        filter(row != "(Intercept)") %>%
+        top_n(100, wt = abs(value)) %>%
+        ggplot(aes(value, reorder(row, value), color = value > 0)) +
+        geom_point(show.legend = FALSE, aes(size = abs(value))) +
+        ggtitle(result2text) +
+        xlab("Effect-size") +
+        ylab(NULL)
+      return(COEFplot)
+    }
+    if(phase=="Normal"){
+    validation_lim <- data.frame(matrix(NA, nrow = dim(PREDlasso)[1], ncol=2), row.names=countryNames)
+    validation_lim [ , 1] <- Y; validation_lim[ , 2] <- PREDlasso[, 1]
+    colnames(validation_lim) <- c("Orig_Y", "LASSO")
+    NN<-3
+    LMylab<-c("LASSO (42*9 +8) param model")
+    LMmain<-c("Observed (X) vs. LASSO-Predicted (Y) Overall Country Ranking, cor=%.02f")
+    Xin_result4<-validation_lim[ , 1]
+    Yin_result4<-validation_lim[ , 2]
+    result4title<-c("Spacetime LASSO Predicted (y) vs. Observed (x) Overall Country Ranking, cor=%.02f")
+    result4Y_T<-c( "Spacetime LASSO Predicted")
+    }
+    if(phase=="Nil"){
+      validation_lim <- cbind(PREDlasso[, 1], 
+                                   Xmat[ , 387], Y)  
+      colnames(validation_lim) <- c("predLASSO_kime", "IFT_NilPhase_FT_Y", "Orig_Y")
+      rownames(validation_lim)[11] <- "Germany"
+      NN<-4
+      LMylab<-c("IFT_NilPhase predLASSO_kime")
+      LMmain<-c("Observed (x) vs. IFT_NilPhase Predicted (y) Overall Country Ranking, cor=%.02f")
+      Xin_result4<-Y
+      Yin_result4<-PREDlasso
+      result4title<-c("Spacekime LASSO Predicted, Nil-Phases (y) vs. Observed (x) Overall Country Ranking, cor=%.02f")
+      result4Y_T<-c("Spacekime LASSO Predicted, using Nil-Phases")
+    }
+    if(phase=="Swap"){
+      set.seed(Seed)
+      cvLASSO_lim = cv.glmnet(data.matrix(X[ , 1:ncol(X)]), Y, alpha = 1, parallel=TRUE)
+      predLASSO_lim <-  predict(cvLASSO_lim, s = ifelse(lam=="min",cvLASSO_lim$lambda.min,lam), # cvLASSO_lim$lambda.min, 
+                                newx = data.matrix(X[ , 1:ncol(X)]))
+      IFT_NilPhase_FT_aggregate_arima_vector<-PS_ARIMAX_remodel(aggregate_arima_vector_country_ranking_df[,
+            1:ncol(aggregate_arima_vector_country_ranking_df)-1],Y,NULL,result = "reconstruct",rename_Y = "Yvec")[[6]]
+      rownames(IFT_NilPhase_FT_aggregate_arima_vector)<-rownames(X)
+      set.seed(Seed)
+      cvLASSO_nil_kime = cv.glmnet(data.matrix(IFT_NilPhase_FT_aggregate_arima_vector[ , 1:ncol(IFT_NilPhase_FT_aggregate_arima_vector)]), 
+                                   Y, alpha = 1, parallel=TRUE)
+      predLASSO_nil_kime <-  predict(cvLASSO_nil_kime, s = ifelse(lam=="min",cvLASSO_nil_kime$lambda.min,lam), 
+                                     newx = data.matrix(IFT_NilPhase_FT_aggregate_arima_vector[ , 1:ncol(IFT_NilPhase_FT_aggregate_arima_vector)]))
+      validation_lim <- cbind(PREDlasso[ , 1],predLASSO_lim[, 1], predLASSO_nil_kime[, 1], Y)  
+      colnames(validation_kime_swapped) <- c("predLASSO_IFT_SwappedPhase","predLASSO (spacetime)", "predLASSO_IFT_NilPhase", "Orig_Y")
+      NN<-5
+      LMylab<-c("predLASSO_spacekime_swapped Country Overall Ranking")
+      LMmain<-c("Observed (x) vs. Kime IFT_SwappedPhase_FT_Y (y) Overall Country Ranking, cor=%.02f")
+      Xin_result4<-Y
+      Yin_result4<-PREDlasso
+      result4title<-c("Spacekime LASSO Predicted, Swapped-Phases (y) vs. Observed (x) Overall Country Ranking, cor=%.02f")
+      result4Y_T<-c("Spacekime LASSO Predicted, using Swapped-Phases")
+    }
+    head(validation_nil_kime)
+    text4<-dim(validation_lim)
+    text5<-head(validation_lim)
+    validation_lim <- as.data.frame(cbind(validation_lim, ifelse (validation_lim[, 1]<=30, 1, 0)))
+    colnames(validation_lim)[NN] <- "Top30Rank"
+    text6<-head(validation_lim)
+    text7<-cor(validation_lim[ , 1], validation_lim[, NN-1])
+    linFit_lim <- lm(validation_lim[ , 1] ~ validation_lim[, 2])
+    if(result==3){
+    plot(validation_lim[ , 1] ~ validation_lim[, NN-1],
+         col="blue", xaxt='n', yaxt='n', pch = 16, cex=3,
+         xlab="Observed Country Overall Ranking", ylab=LMylab,
+         main = sprintf(LMmain, 
+                        cor(validation_lim[ , 1], validation_lim[, NN-1])))
+    abline(linFit_lim, lwd=3, col="red")
+    }
+    if(result==4){
+      myPlot <- ggplot(as.data.frame(validation_lim), aes(x=Xin_result4,
+                                                          y=Yin_result4, label=rownames(validation_lim))) +
+        geom_smooth(method='lm') +
+        geom_point() +
+        # Color by groups
+        # geom_text(aes(color=factor(rownames(validation_lim)))) +
+        geom_label_repel(aes(label = rownames(validation_lim),
+                             fill = factor(Top30Rank)), color = 'black', size = 5,  
+                         point.padding = unit(0.3, "lines")) +
+        # theme(legend.position = "bottom") +
+        theme(legend.position = c(0.1, 0.9), 
+              legend.text = element_text(colour="black", size=12, face="bold"),
+              legend.title = element_text(colour="black", size=14, face="bold")) +
+        scale_fill_discrete(name = "Country Overall Ranking", 
+                            labels = c("Below 30 Rank", "Top 30 Rank")) +
+        labs(title=sprintf(result4title,  cor(validation_lim[ , 1], validation_lim[, NN-1])),
+             x ="Observed Overall Country Ranking (1 is 'best')", 
+             y = "Spacetime LASSO Predicted")
+      return(myPlot)
+    }
+    if(result==5){
+      RESlist<-list(dimX=text0,Coef_first9=text1,COR_pred_true=text2,LASSO_Varimp=text3,dimLASSO=text4,LASSO_part_feature=text5,LASSO_rename_feature=text6,pred_COR=text7)
+      return(RESlist)
+    }
+}
+```
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->

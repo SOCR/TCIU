@@ -1,0 +1,917 @@
+---
+title: "Fig5.23_to_24"
+subtitle: "[Back To Chapter 5.5](Chap_5.5.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 5
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+
+```{r setup, include=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
+```
+
+```{r, message=FALSE, warning=FALSE}
+#Put all packages here
+library(doParallel)
+registerDoParallel(10, cores = detectCores() -2)
+library(glmnet)
+library(e1071)
+library("randomForest")
+library(ada)
+library(adabag)
+library(caret)
+library(kernlab)
+library(cluster)
+library(ipred)
+library(ggplot2)
+library("factoextra")
+library("FactoMineR")
+```
+
+# Unsupervised clustering
+
+Use [hierarchical, k-means and spectral clustering](http://dspa.predictive.space/) to generate derived-computed phenotypes of countries. Do these derived lables relate (correspond to) the overall (OA) country ranking?
+
+```{r}
+load("./Rdata/Fig5.23_to_24.RData")
+# View(aggregate_arima_vector_country_ranking_df)
+dim(aggregate_arima_vector_country_ranking_df)  
+# 31(countries) 387(fetaures)
+# Features = country-index + 386 features (378 time-series derivatives + 8 meta-data features)
+```
+
+```{r,echo=FALSE}
+chooselambda <- function(cvlasso, option, k=NULL) {
+  lambmat<-cbind(cvlasso$glmnet.fit$df,cvlasso$glmnet.fit$lambda)
+  result<-tapply(lambmat[,2],lambmat[,1],max)
+  kresult<-result[which(names(result)==as.factor(k))]
+  if(option==1) {return(result)}
+  else if (option==2) {return(kresult)}
+  else (return("Not a valid option"))
+}
+showfeatures <- function(object, lambda, k ,...) {
+  lam<-lambda[which(names(lambda)==as.factor(k))]
+  beta <- predict(object, s = lam, type = "coef")
+  if(is.list(beta)) {
+    out <- do.call("cbind", lapply(beta, function(x) x[,1]))
+    out <- as.data.frame(out)
+    s <- rowSums(out)
+    out <- out[which(s)!=0,,drop=FALSE]
+  } else  {out<-data.frame(Overall = beta[,1])
+  out<-out[which(out!=0),,drop=FALSE]
+  }
+  out <- abs(out[rownames(out) != "(Intercept)",,drop = FALSE])
+  out
+}
+randchoose <- function(matr) {
+  leng<-nrow(matr)
+  se<-seq(1:leng)
+  sam<-sample(se,as.integer(leng*0.6))
+  return(sam)
+}
+MLcomp <- function(fitlas, cvlas, trn, test, option=1) {
+  allfeat<-as.numeric(names(chooselambda(cvlasso = cvlas, option = 1)))
+  allfeat<-allfeat[which(allfeat>4)]
+  trainlist<-as.list(NULL)
+  for (i in 1:length(allfeat)) {
+    trainlist[[i]]<-trn[,which(colnames(trn) %in% 
+                                 c(row.names(showfeatures(fitlas, chooselambda(cvlas = cvlas,1), allfeat[i])), "Rank"))]
+  }
+resultframe<-data.frame(origin=rep(NA,length(allfeat)))
+rownames(resultframe)<-allfeat
+resultframe$Decision_tree_bagging<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    eubag<-ipred::bagging(Rank~.,data = trainlist[[i]],nbagg=100)
+    bagtest<-predict(eubag, eutest)
+    bagagg<-bagtest==eutest$Rank
+    accuracy<-prop.table(table(bagagg))[c("TRUE")]
+    resultframe$Decision_tree_bagging[i]<-accuracy
+  }
+resultframe$Random_forest<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    eurf<-randomForest(Rank~.,data=trainlist[[i]])
+    rftest<-predict(eurf,eutest)
+    rfagg<-rftest==eutest$Rank
+    accuracy<-prop.table(table(rfagg))[c("TRUE")]
+    resultframe$Random_forest[i]<-accuracy
+  }
+resultframe$Decision_tree_adaboost<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    enada<-ada(Rank~.,data = trainlist[[i]],iter=50)
+    adatest<-predict(enada,eutest)
+    adaagg<-adatest==eutest$Rank
+    accuracy<-prop.table(table(adaagg))[c("TRUE")]
+    resultframe$Decision_tree_adaboost[i]<-accuracy
+  }
+resultframe$GLM<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    euglm<-glm(Rank~.,data = trainlist[[i]],family = "binomial")
+    glmtest<-predict(euglm,eutest)
+    glmtest<-ifelse(glmtest<0,0,1)
+    glmagg<-glmtest==eutest$Rank
+    accuracy<-prop.table(table(glmagg))[c("TRUE")]
+    resultframe$GLM[i]<-accuracy
+  }
+resultframe$SVM_best_Gamma_Cost<-rep(NA,length(allfeat))  
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    svmtune<-tune.svm(Rank~.,data = trainlist[[i]],gamma = 10^(-6:1),cost = 10^(-10:10))
+    svmed<-svm(Rank~.,data=trainlist[[i]],gamma=svmtune$best.parameters[1],cost=svmtune$best.parameters[2])
+    svmtest<-predict(svmed,eutest)
+    svmagg<-svmtest==eutest$Rank
+    accuracy<-prop.table(table(svmagg))[c("TRUE")]
+    resultframe$SVM_best_Gamma_Cost[i]<-accuracy
+  }
+  resultframe$origin<-NULL
+  if(option==1){return(resultframe)}
+}
+
+# resultXframe <- MLcomp(fitLASSO, cvLASSO, Xtrain, Xtest, 1)
+MLcompX <- function(fitlas, cvlas, trn, test, option=1) {
+  allfeat<-as.numeric(names(chooselambda(cvlasso = cvlas, option = 1)))
+  allfeat<-allfeat[which(allfeat>4)]
+  trainlist<-as.list(NULL)
+  for (i in 1:length(allfeat)) {
+    trainlist[[i]]<-trn[,which(colnames(trn) %in% 
+                                 c(row.names(showfeatures(fitlas, chooselambda(cvlas = cvlas,1), allfeat[i])), "Rank"))]
+  }
+ 
+  resultXframe<-data.frame(origin=rep(NA,length(allfeat)))
+  rownames(resultXframe)<-allfeat
+  resultXframe$Decision_tree_bagging<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    #ERROR HANDLING
+    possibleError <- tryCatch(
+        function () {
+          set.seed(1234)
+          Xbag<-ipred::bagging(Rank~ . ,data = trainlist[[i]], nbagg=100, 
+                               control=rpart.control(minsplit=2, cp=0.1, xval=10))
+          bagtest<-predict(Xbag, Xtest)
+          bagagg<-bagtest==Xtest$Rank
+          accuracy<-prop.table(table(bagagg))[c("TRUE")]
+          resultXframe$Decision_tree_bagging[i]<-accuracy
+        },
+        error=function(e) e
+    )
+    if(inherits(possibleError, "error")) next
+    # print(i)
+  }
+
+  resultXframe$Random_forest<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    Xrf<-randomForest(Rank~.,data=trainlist[[i]])
+    rftest<-predict(Xrf,test)
+    rfagg<-rftest==test$Rank
+    accuracy<-prop.table(table(rfagg))[c("TRUE")]
+    resultXframe$Random_forest[i]<-accuracy
+  }
+
+  resultXframe$Decision_tree_adaboost<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    Xada<-ada(Rank~.,data = trainlist[[i]],iter=50)
+    adatest<-predict(Xada,test)
+    adaagg<-adatest==test$Rank
+    accuracy<-prop.table(table(adaagg))[c("TRUE")]
+    resultXframe$Decision_tree_adaboost[i]<-accuracy
+  }
+
+  resultXframe$GLM<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    euglm<-glm(Rank~.,data = trainlist[[i]],family = "binomial")
+    glmtest<-predict(euglm,test)
+    glmtest<-ifelse(glmtest<0,0,1)
+    glmagg<-glmtest==test$Rank
+    accuracy<-prop.table(table(glmagg))[c("TRUE")]
+    resultXframe$GLM[i]<-accuracy
+  }
+
+  resultXframe$SVM_best_Gamma_Cost<-rep(NA,length(allfeat))  
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    svmtune<-tune.svm(Rank~.,data = trainlist[[i]],gamma = 10^(-6:1),cost = 10^(-10:10))
+    svmed<-svm(Rank~.,data=trainlist[[i]],gamma=svmtune$best.parameters[1],cost=svmtune$best.parameters[2])
+    svmtest<-predict(svmed,test)
+    svmagg<-svmtest==test$Rank
+    accuracy<-prop.table(table(svmagg))[c("TRUE")]
+    resultXframe$SVM_best_Gamma_Cost[i]<-accuracy
+  }
+  resultXframe$origin<-NULL
+  if(option==1){return(resultXframe)}
+}
+```
+
+## Spacetime analytics
+
+ - **1.1 Lasso features selection**
+
+```{r warning=F, error=F}
+eudata <- aggregate_arima_vector_country_ranking_df
+colnames(eudata) <- c("country",colnames(eudata[,-1]))
+eudata <- eudata[ , -ncol(eudata)]
+Y<-aggregate_arima_vector_country_ranking_df$OA
+
+# Compelte data 386 features (378 + 8)
+X<-eudata[,-ncol(eudata)]; dim(X)
+# TS-derivative features only (378)
+X378 <- X[, -c(379:386)]; dim(X378)
+countryinfo<-as.character(X[,1])
+countryinfo[11]<-"Germany"
+X<-X[,-1]
+keeplist<-NULL
+for (i in 1:ncol(X)) {
+  if(FALSE %in% (X[,i]==mean(X[,i]))) {keeplist<-c(keeplist,i)}
+}
+X<-X[,keeplist]; dim(X)
+
+# Reduced to 378 features 
+#countryinfo<-as.character(X378[,1])
+#countryinfo[11]<-"Germany"
+#X378<-X378[,-1]
+#keeplist<-NULL
+#for (i in 1:ncol(X378)) {
+#    if(FALSE %in% (X378[,i]==mean(X378[,i]))) {keeplist<-c(keeplist,i)}
+#}
+#X378<-X378[,keeplist]; dim(X378)
+
+fitLASSO <- glmnet(as.matrix(X), Y, alpha = 1)
+#cross-validation
+cvLASSO = cv.glmnet(data.matrix(X), Y, alpha = 1, parallel=TRUE)
+
+# fitLASSO <- glmnet(as.matrix(X378), Y, alpha = 1)
+#library(doParallel)
+#registerDoParallel(5)
+#cross-validation
+#cvLASSO = cv.glmnet(data.matrix(X378), Y, alpha = 1, parallel=TRUE)
+```
+
+ - ** 1.2 Comparison of different ML algorithms of different feature numbers**
+
+**Feature 5.23 A**
+```{r,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+eusample<-X
+eusample$Rank<-as.factor(ifelse(Y<30, 1, 0))
+set.seed(1234)
+eutrain<-eusample[randchoose(eusample), ]
+set.seed(1234)
+eutest<-eusample[-randchoose(eusample), ]
+
+eusample378 <- X378
+eusample378$Rank <- as.factor(ifelse(Y<30, 1, 0))
+set.seed(1234)
+eutrain378 <- eusample378[randchoose(eusample378), ]
+set.seed(1234)
+eutest378 <- eusample378[-randchoose(eusample378), ]
+
+resultframe <- MLcomp(fitLASSO, cvLASSO, eutrain, eutest, 1)
+resultframe_386_ST <- resultframe
+# View(resultframe_386_ST)
+
+# resultframe_378_ST <- MLcomp(fitLASSO, cvLASSO, eutrain378, eutest378, 1)
+
+# Display results
+resultframe$features<-as.factor(as.numeric(rownames(resultframe)))
+ppframe<-data.frame(NULL)
+for (i in 1:5) {
+  FM <- data.frame(resultframe[,i], resultframe$features,
+                   Methods<-rep(colnames(resultframe)[i], nrow(resultframe)))
+  ppframe<-rbind(ppframe, FM)
+}
+colnames(ppframe)<-c("Accuracy", "Features", "Methods")
+ggplot(ppframe, aes(x=Features, y=Accuracy, colour=Methods, 
+                    group=Methods, shape=Methods))+
+  geom_line(position=position_dodge(0.2), lwd=2)+
+  ylim(0.2, 1.0) +
+  geom_point(size=5, position=position_dodge(0.2))+
+  theme(legend.position="top", legend.text=element_text(size=16))+
+  ggtitle("Spacetime (386 features): Compare ML Forecasting Results")+
+  theme(
+    axis.text=element_text(size=16),
+    plot.title = element_text(size=18, face="bold.italic"),
+    axis.title.x = element_text(size=14, face="bold"),
+    axis.title.y = element_text(size=14, face="bold"))
+```
+
+```{r Figure 5.23A Output}
+png("../Figures/Fig5.23A.png",width = 1920,height = 1080,res = 100)
+ggplot(ppframe, aes(x=Features, y=Accuracy, colour=Methods, 
+                    group=Methods, shape=Methods))+
+  geom_line(position=position_dodge(0.2), lwd=2)+
+  ylim(0.2, 1.0) +
+  geom_point(size=5, position=position_dodge(0.2))+
+  theme(legend.position="top", legend.text=element_text(size=16))+
+  ggtitle("Spacetime (386 features): Compare ML Forecasting Results")+
+  theme(
+    axis.text=element_text(size=16),
+    plot.title = element_text(size=18, face="bold.italic"),
+    axis.title.x = element_text(size=14, face="bold"),
+    axis.title.y = element_text(size=14, face="bold"))
+dev.off()
+```
+
+**Feature 5.23 B**
+```{r,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+# spacetime (ST) 378_ST
+resultframe_378_ST$features<-as.factor(as.numeric(rownames(resultframe_378_ST)))
+ppframe_378_ST<-data.frame(NULL)
+for (i in 1:5) {
+  FM_378_ST <- data.frame(resultframe_378_ST[,i], resultframe_378_ST$features,
+          Methods<-rep(colnames(resultframe_378_ST)[i], nrow(resultframe_378_ST)))
+  ppframe_378_ST<-rbind(ppframe_378_ST, FM_378_ST)
+}
+colnames(ppframe_378_ST)<-c("Accuracy", "Features", "Methods")
+ggplot(ppframe_378_ST, aes(x=Features, y=Accuracy, colour=Methods, 
+                    group=Methods, shape=Methods))+
+  geom_line(position=position_dodge(0.2), lwd=2)+
+  ylim(0.2, 1.0) +
+  geom_point(size=5, position=position_dodge(0.2))+
+  theme(legend.position="top", legend.text=element_text(size=16))+
+  ggtitle("Spacetime (386 features): Compare ML Forecasting Results")+
+  theme(
+    axis.text=element_text(size=16),
+    plot.title = element_text(size=18, face="bold.italic"),
+    axis.title.x = element_text(size=14, face="bold"),
+    axis.title.y = element_text(size=14, face="bold"))
+```
+
+```{r Figure 5.23 B Output}
+png("../Figures/Fig5.23B.png",width = 1920,height = 1080,res = 100)
+ggplot(ppframe_378_ST, aes(x=Features, y=Accuracy, colour=Methods, 
+                    group=Methods, shape=Methods))+
+  geom_line(position=position_dodge(0.2), lwd=2)+
+  ylim(0.2, 1.0) +
+  geom_point(size=5, position=position_dodge(0.2))+
+  theme(legend.position="top", legend.text=element_text(size=16))+
+  ggtitle("Spacetime (386 features): Compare ML Forecasting Results")+
+  theme(
+    axis.text=element_text(size=16),
+    plot.title = element_text(size=18, face="bold.italic"),
+    axis.title.x = element_text(size=14, face="bold"),
+    axis.title.y = element_text(size=14, face="bold"))
+dev.off()
+```
+
+ - **1.3 Clustering**
+
+**Feature 5.23 C**
+```{r,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+showfeatures(fitLASSO, chooselambda(cvLASSO,1), 10)
+feat_5 <-  predict(fitLASSO, s = chooselambda(cvLASSO,2,10), newx = data.matrix(X))
+df1 <- as.data.frame(rbind(as.numeric(feat_5),Y), 
+                     row.names = c("Predicted Rank","OA Rank"))
+colnames(df1) <- countryNames
+df1 # View(t(df1))
+
+# Clustering
+cluster5 <- X[, which(colnames(X) %in%
+                        row.names(showfeatures(fitLASSO, chooselambda(cvLASSO,1), 10)))]
+rownames(cluster5) <- countryNames # countryinfo
+
+#1. hierarchical clustering
+scaled_cluster5 <- scale(cluster5)
+##deal with NAN values
+#scaled_country<-scaled_country[,which(is.nan(scaled_country[1,])==FALSE)]
+dis_SC5 <- dist(scaled_cluster5)
+H_clust_SC5 <- hclust(dis_SC5)
+
+H_clust_SC5 <- eclust(scaled_cluster5, k=5, "hclust")
+fviz_dend(H_clust_SC5, rect = TRUE, cex=0.5)
+```
+```{r Figure 5.23C Output}
+png("../Figures/Fig5.23C.png",width = 1920,height = 1080,res = 100)
+fviz_dend(H_clust_SC5, rect = TRUE, cex=0.5)
+dev.off()
+# fviz_dend(H_clust_SC5, lwd=2, rect = TRUE)
+```
+
+**Feature 5.23 D**
+```{r,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+# ST 378
+cluster5_378_ST <- X378[, which(colnames(X378) %in%
+                        row.names(showfeatures(fitLASSO, chooselambda(cvLASSO,1), 10)))]
+rownames(cluster5_378_ST) <- countryNames # countryinfo
+#1. hierarchical clustering
+scaled_cluster5_378_ST <- scale(cluster5_378_ST)
+dis_SC5_378_ST <- dist(scaled_cluster5_378_ST)
+H_clust_SC5_378_ST <- hclust(dis_SC5_378_ST)
+H_clust_SC5_378_ST <- eclust(scaled_cluster5_378_ST, k=5, "hclust")
+fviz_dend(H_clust_SC5_378_ST,rect = TRUE, cex=0.5)
+```
+```{r Figure 5.23 D Output}
+png("../Figures/Fig5.23D.png",width = 1920,height = 1080,res = 100)
+fviz_dend(H_clust_SC5_378_ST,rect = TRUE, cex=0.5)
+dev.off()
+```
+
+#### Spacekime - Nil-Phase
+
+ - ** 2.1 Lasso features selection**
+
+ - ** 2.2 Comparison of different ML algorithms of different feature numbers**
+
+ - ** 2.3 Clustering**
+  
+#### Spacekime - Swapped-Phase
+
+ - ** 3.1 Lasso features selection**
+
+```{r warning=F, error=F}
+dim(IFT_SwappedPhase_FT_aggregate_arima_vector)
+# [1]  31 387
+eudata_SwappedPhase <- IFT_SwappedPhase_FT_aggregate_arima_vector
+colnames(eudata_SwappedPhase) <- c("country", colnames(eudata_SwappedPhase[,-1]))
+eudata_SwappedPhase <- as.data.frame(eudata_SwappedPhase[ , -ncol(eudata_SwappedPhase)])
+Y <- as.data.frame(IFT_SwappedPhase_FT_aggregate_arima_vector)$OA
+
+# Compelte data 386 features (378 + 8)
+X <- eudata_SwappedPhase
+countryinfo<-as.character(X[,1])
+countryinfo[11]<-"Germany"
+X<-X[,-1]
+keeplist<-NULL
+for (i in 1:ncol(X)) {
+  if(FALSE %in% (X[,i]==mean(X[,i]))) {keeplist<-c(keeplist,i)}
+}
+X<-X[,keeplist]; dim(X)   # 31 343
+
+# Reduced to 378 features 
+# TS-derivative features only (378)
+# X378 <- X[, -c(379:386)]; dim(X378)
+#countryinfo<-as.character(X378[,1])
+#countryinfo[11]<-"Germany"
+#X378<-X378[,-1]
+#keeplist<-NULL
+#for (i in 1:ncol(X378)) {
+#    if(FALSE %in% (X378[,i]==mean(X378[,i]))) {keeplist<-c(keeplist,i)}
+#}
+#X378<-X378[,keeplist]; dim(X378)
+
+fitLASSO_X <- glmnet(as.matrix(X), Y, alpha = 1)
+#cross-validation
+cvLASSO_X = cv.glmnet(data.matrix(X), Y, alpha = 1, parallel=TRUE)
+
+# fitLASSO_X <- glmnet(as.matrix(X378), Y, alpha = 1)
+#library(doParallel)
+#registerDoParallel(5)
+#cross-validation
+#cvLASSO_X = cv.glmnet(data.matrix(X378), Y, alpha = 1, parallel=TRUE)
+
+```
+
+ - ** 3.2 Comparison of different ML algorithms of different feature numbers**
+
+**Feature 5.24 A**
+```{r,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+#test training data setup
+
+Xsample <- X
+Xsample$Rank <- as.factor(ifelse(Y<30, 1, 0))
+set.seed(1234)
+Xtrain <- Xsample[randchoose(Xsample), ]
+set.seed(1234)
+Xtest <- Xsample[-randchoose(Xsample), ]
+
+#Xsample378 <- X378
+#Xsample378$Rank <- as.factor(ifelse(Y<30, 1, 0))
+#set.seed(1234)
+#Xtrain378 <- Xsample378[randchoose(Xsample378), ]
+#set.seed(1234)
+#Xtest378 <- Xsample378[-randchoose(Xsample378), ]
+
+
+resultXframe <- MLcompX(fitLASSO_X, cvLASSO_X, Xtrain, Xtest, 1)
+resultXframe_386_SK_Swapped <- resultXframe
+# View(resultXframe_386_SK_Swapped)
+
+# resultXframe_378_SK_Swapped <- MLcompX(fitLASSO_X, cvLASSO_X, Xtrain378, Xtest378, 1)
+
+# Display results
+resultXframe$features<-as.factor(as.numeric(rownames(resultXframe)))
+ppframeX<-data.frame(NULL)
+for (i in 1:5) {
+  FM <- data.frame(resultXframe[,i], resultXframe$features,
+                   Methods<-rep(colnames(resultXframe)[i], nrow(resultXframe)))
+  ppframeX<-rbind(ppframeX, FM)
+}
+colnames(ppframeX)<-c("Accuracy", "Features", "Methods")
+ggplot(ppframeX, aes(x=Features, y=Accuracy, colour=Methods, 
+                    group=Methods, shape=Methods))+
+  geom_line(position=position_dodge(0.2), lwd=2)+
+  ylim(0.2, 1.0) +
+  geom_point(size=5, position=position_dodge(0.2))+
+  theme(legend.position="top", legend.text=element_text(size=16))+
+  ggtitle("Spacekime Swapped-Phases (386 features): Compare ML Forecasting Results")+
+  theme(
+    axis.text=element_text(size=16),
+    plot.title = element_text(size=18, face="bold.italic"),
+    axis.title.x = element_text(size=14, face="bold"),
+    axis.title.y = element_text(size=14, face="bold"))
+```
+
+```{r Figure 5.24A Output}
+png("../Figures/Fig5.24A.png",width = 1920,height = 1080,res = 100)
+ggplot(ppframeX, aes(x=Features, y=Accuracy, colour=Methods, 
+                    group=Methods, shape=Methods))+
+  geom_line(position=position_dodge(0.2), lwd=2)+
+  ylim(0.2, 1.0) +
+  geom_point(size=5, position=position_dodge(0.2))+
+  theme(legend.position="top", legend.text=element_text(size=16))+
+  ggtitle("Spacekime Swapped-Phases (386 features): Compare ML Forecasting Results")+
+  theme(
+    axis.text=element_text(size=16),
+    plot.title = element_text(size=18, face="bold.italic"),
+    axis.title.x = element_text(size=14, face="bold"),
+    axis.title.y = element_text(size=14, face="bold"))
+dev.off()
+
+# spacetime (ST) 378_ST
+resultframe_378_ST$features<-as.factor(as.numeric(rownames(resultframe_378_ST)))
+ppframe_378_ST<-data.frame(NULL)
+for (i in 1:5) {
+  FM_378_ST <- data.frame(resultframe_378_ST[,i], resultframe_378_ST$features,
+          Methods<-rep(colnames(resultframe_378_ST)[i], nrow(resultframe_378_ST)))
+  ppframe_378_ST<-rbind(ppframe_378_ST, FM_378_ST)
+}
+colnames(ppframe_378_ST)<-c("Accuracy", "Features", "Methods")
+ggplot(ppframe_378_ST, aes(x=Features, y=Accuracy, colour=Methods, 
+                    group=Methods, shape=Methods))+
+  geom_line(position=position_dodge(0.2), lwd=2)+
+  ylim(0.2, 1.0) +
+  geom_point(size=5, position=position_dodge(0.2))+
+  theme(legend.position="top", legend.text=element_text(size=16))+
+  ggtitle("Spacetime (386 features): Compare ML Forecasting Results")+
+  theme(
+    axis.text=element_text(size=16),
+    plot.title = element_text(size=18, face="bold.italic"),
+    axis.title.x = element_text(size=14, face="bold"),
+    axis.title.y = element_text(size=14, face="bold"))
+```
+
+**Feature 5.24 B**
+```{r,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+##################### for resultXframe_378_SK_Swapped
+resultXframe_378_SK_Swapped$features<-as.factor(as.numeric(rownames(resultXframe_378_SK_Swapped)))
+ppframeX<-data.frame(NULL)
+for (i in 1:5) {
+    FM <- data.frame(resultXframe_378_SK_Swapped[, i], resultXframe_378_SK_Swapped$features,
+                     Methods<-rep(colnames(resultXframe_378_SK_Swapped)[i], nrow(resultXframe_378_SK_Swapped)))
+    ppframeX<-rbind(ppframeX, FM)
+}
+colnames(ppframeX)<-c("Accuracy", "Features", "Methods")
+ggplot(ppframeX, aes(x=Features, y=Accuracy, colour=Methods, 
+                     group=Methods, shape=Methods))+
+    geom_line(position=position_dodge(0.2), lwd=2)+
+    ylim(0.2, 1.0) +
+    geom_point(size=5, position=position_dodge(0.2))+
+    theme(legend.position="top", legend.text=element_text(size=16))+
+    ggtitle("Spacekime Swapped-Phases (386 features): Compare ML Forecasting Results")+
+    theme(
+        axis.text=element_text(size=16),
+        plot.title = element_text(size=18, face="bold.italic"),
+        axis.title.x = element_text(size=14, face="bold"),
+        axis.title.y = element_text(size=14, face="bold"))
+```
+
+```{r Figure 5.24B Output}
+png("../Figures/Fig5.24B.png",width = 1920,height = 1080,res = 100)
+ggplot(ppframeX, aes(x=Features, y=Accuracy, colour=Methods, 
+                     group=Methods, shape=Methods))+
+    geom_line(position=position_dodge(0.2), lwd=2)+
+    ylim(0.2, 1.0) +
+    geom_point(size=5, position=position_dodge(0.2))+
+    theme(legend.position="top", legend.text=element_text(size=16))+
+    ggtitle("Spacekime Swapped-Phases (386 features): Compare ML Forecasting Results")+
+    theme(
+        axis.text=element_text(size=16),
+        plot.title = element_text(size=18, face="bold.italic"),
+        axis.title.x = element_text(size=14, face="bold"),
+        axis.title.y = element_text(size=14, face="bold"))
+dev.off()
+```
+
+ - ** 3.3 Clustering**
+
+**Feature 5.24 C**
+```{r,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+showfeatures(fitLASSO_X, chooselambda(cvLASSO_X, 1), 10)
+feat_5 <-  predict(fitLASSO_X, s = chooselambda(cvLASSO_X, 2, 10), newx = data.matrix(X))
+df1 <- as.data.frame(rbind(as.numeric(feat_5), Y), 
+                     row.names = c("Predicted Rank","OA Rank"))
+colnames(df1) <- countryNames
+df1 # View(t(df1))
+
+# Clustering
+cluster5 <- X[, which(colnames(X) %in%
+                        row.names(showfeatures(fitLASSO_X, chooselambda(cvLASSO_X, 1), 10)))]
+rownames(cluster5) <- countryNames # countryinfo
+
+#1. hierarchical clustering
+scaled_cluster5 <- scale(cluster5)
+##deal with NAN values
+#scaled_country<-scaled_country[,which(is.nan(scaled_country[1,])==FALSE)]
+dis_SC5 <- dist(scaled_cluster5)
+H_clust_SC5 <- hclust(dis_SC5)
+
+H_clust_SC5 <- eclust(scaled_cluster5, k=5, "hclust")
+```
+
+```{r Figure 5.24 C Output}
+png("../Figures/Fig5.24C.png",width = 1920,height = 1080,res = 100)
+fviz_dend(H_clust_SC5, rect = TRUE, cex=0.5)
+dev.off()
+fviz_dend(H_clust_SC5, rect = TRUE, cex=0.5)
+# fviz_dend(H_clust_SC5, lwd=2, rect = TRUE)
+```
+
+**Feature 5.24 D**
+```{r,fig.width=14,fig.height=10,out.width=1920,out.height=1080}
+# ST 378
+cluster5_378_SK <- X378[, which(colnames(X378) %in%
+                        row.names(showfeatures(fitLASSO_X, chooselambda(cvLASSO_X, 1), 10)))]
+rownames(cluster5_378_SK) <- countryNames # countryinfo
+#1. hierarchical clustering
+scaled_cluster5_378_SK <- scale(cluster5_378_SK)
+dis_SC5_378_SK <- dist(scaled_cluster5_378_SK)
+H_clust_SC5_378_SK <- hclust(dis_SC5_378_SK)
+H_clust_SC5_378_SK <- eclust(scaled_cluster5_378_SK, k=5, "hclust")
+fviz_dend(H_clust_SC5_378_SK,rect = TRUE, cex=0.5)
+```
+```{r Figure 5.24D Output}
+png("../Figures/Fig5.24D.png",width = 1920,height = 1080,res = 100)
+fviz_dend(H_clust_SC5_378_SK,rect = TRUE, cex=0.5)
+dev.off()
+```
+
+#Appendix
+
+All functions used in this part
+
+##chooselambda()
+```{r}
+#' Show the features.
+#' 
+#' @param cvlasso Lasso cross-validation result.
+#' @param option put in 1 or 2. 1 will generate lambda for all different features choices. 2 will generate lambda for a particular number of features
+#' @param k work when option is 2. Put in the number of features you wish to keep
+#' @return
+#' @examples
+chooselambda <- function(cvlasso, option, k=NULL) {
+  lambmat<-cbind(cvlasso$glmnet.fit$df,cvlasso$glmnet.fit$lambda)
+  result<-tapply(lambmat[,2],lambmat[,1],max)
+  kresult<-result[which(names(result)==as.factor(k))]
+  if(option==1) {return(result)}
+  else if (option==2) {return(kresult)}
+  else (return("Not a valid option"))
+}
+```
+
+##showfeatures()
+```{r}
+#' Show the features.
+#' 
+#' @param object A number.
+#' @param lambda A number.
+#' @param k A number.
+#' @return The sum of \code{x} and \code{y}.
+#' @examples
+showfeatures <- function(object, lambda, k ,...) {
+  lam<-lambda[which(names(lambda)==as.factor(k))]
+  beta <- predict(object, s = lam, type = "coef")
+  if(is.list(beta)) {
+    out <- do.call("cbind", lapply(beta, function(x) x[,1]))
+    out <- as.data.frame(out)
+    s <- rowSums(out)
+    out <- out[which(s)!=0,,drop=FALSE]
+  } else  {out<-data.frame(Overall = beta[,1])
+  out<-out[which(out!=0),,drop=FALSE]
+  }
+  out <- abs(out[rownames(out) != "(Intercept)",,drop = FALSE])
+  out
+}
+```
+
+##randchoose()
+```{r}
+#'randomly choose 60% of data to keep as training data
+#'
+#' @param matr dataset matrix that you wish to split training and testing set on.
+#' @return
+#' @examples
+randchoose <- function(matr) {
+  leng<-nrow(matr)
+  se<-seq(1:leng)
+  sam<-sample(se,as.integer(leng*0.6))
+  return(sam)
+}
+```
+
+##MLcomp()
+```{r}
+#' Compare prediction performance of different machine learning algorithms
+#' 
+#' @param fitlas A glmnet LASSO object. 
+#' @param cvlas A cv.glmnet LASSO object.
+#' @param train A training dataset.
+#' @param test A test dataset.
+#' @param option A number.
+#' @return A table of prediction accuracy of Bagging, Random Forest, Adaboost,
+#'         Logistic Regression and Support Vector Machine with diffrent number 
+#'         of features.
+MLcomp <- function(fitlas, cvlas, trn, test, option=1) {
+  allfeat<-as.numeric(names(chooselambda(cvlasso = cvlas, option = 1)))
+  allfeat<-allfeat[which(allfeat>4)]
+  trainlist<-as.list(NULL)
+  for (i in 1:length(allfeat)) {
+    trainlist[[i]]<-trn[,which(colnames(trn) %in% 
+                                 c(row.names(showfeatures(fitlas, chooselambda(cvlas = cvlas,1), allfeat[i])), "Rank"))]
+  }
+resultframe<-data.frame(origin=rep(NA,length(allfeat)))
+rownames(resultframe)<-allfeat
+resultframe$Decision_tree_bagging<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    eubag<-ipred::bagging(Rank~.,data = trainlist[[i]],nbagg=100)
+    bagtest<-predict(eubag, eutest)
+    bagagg<-bagtest==eutest$Rank
+    accuracy<-prop.table(table(bagagg))[c("TRUE")]
+    resultframe$Decision_tree_bagging[i]<-accuracy
+  }
+resultframe$Random_forest<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    eurf<-randomForest(Rank~.,data=trainlist[[i]])
+    rftest<-predict(eurf,eutest)
+    rfagg<-rftest==eutest$Rank
+    accuracy<-prop.table(table(rfagg))[c("TRUE")]
+    resultframe$Random_forest[i]<-accuracy
+  }
+resultframe$Decision_tree_adaboost<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    enada<-ada(Rank~.,data = trainlist[[i]],iter=50)
+    adatest<-predict(enada,eutest)
+    adaagg<-adatest==eutest$Rank
+    accuracy<-prop.table(table(adaagg))[c("TRUE")]
+    resultframe$Decision_tree_adaboost[i]<-accuracy
+  }
+resultframe$GLM<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    euglm<-glm(Rank~.,data = trainlist[[i]],family = "binomial")
+    glmtest<-predict(euglm,eutest)
+    glmtest<-ifelse(glmtest<0,0,1)
+    glmagg<-glmtest==eutest$Rank
+    accuracy<-prop.table(table(glmagg))[c("TRUE")]
+    resultframe$GLM[i]<-accuracy
+  }
+resultframe$SVM_best_Gamma_Cost<-rep(NA,length(allfeat))  
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    svmtune<-tune.svm(Rank~.,data = trainlist[[i]],gamma = 10^(-6:1),cost = 10^(-10:10))
+    svmed<-svm(Rank~.,data=trainlist[[i]],gamma=svmtune$best.parameters[1],cost=svmtune$best.parameters[2])
+    svmtest<-predict(svmed,eutest)
+    svmagg<-svmtest==eutest$Rank
+    accuracy<-prop.table(table(svmagg))[c("TRUE")]
+    resultframe$SVM_best_Gamma_Cost[i]<-accuracy
+  }
+  resultframe$origin<-NULL
+  if(option==1){return(resultframe)}
+}
+```
+
+##MLcompX()
+```{r}
+#' Compare prediction performance of different machine learning algorithms
+#' 
+#' @param fitlas A glmnet LASSO object. 
+#' @param cvlas A cv.glmnet LASSO object.
+#' @param train A training dataset.
+#' @param test A test dataset.
+#' @param option A number.
+#' @return A table of prediction accuracy of Bagging, Random Forest, Adaboost,
+#'         Logistic Regression and Support Vector Machine with diffrent number 
+#'         of features.
+MLcompX <- function(fitlas, cvlas, trn, test, option=1) {
+  allfeat<-as.numeric(names(chooselambda(cvlasso = cvlas, option = 1)))
+  allfeat<-allfeat[which(allfeat>4)]
+  trainlist<-as.list(NULL)
+  for (i in 1:length(allfeat)) {
+    trainlist[[i]]<-trn[,which(colnames(trn) %in% 
+                                 c(row.names(showfeatures(fitlas, chooselambda(cvlas = cvlas,1), allfeat[i])), "Rank"))]
+  }
+ 
+  resultXframe<-data.frame(origin=rep(NA,length(allfeat)))
+  rownames(resultXframe)<-allfeat
+  resultXframe$Decision_tree_bagging<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    #ERROR HANDLING
+    possibleError <- tryCatch(
+        function () {
+          set.seed(1234)
+          Xbag<-ipred::bagging(Rank~ . ,data = trainlist[[i]], nbagg=100, 
+                               control=rpart.control(minsplit=2, cp=0.1, xval=10))
+          bagtest<-predict(Xbag, Xtest)
+          bagagg<-bagtest==Xtest$Rank
+          accuracy<-prop.table(table(bagagg))[c("TRUE")]
+          resultXframe$Decision_tree_bagging[i]<-accuracy
+        },
+        error=function(e) e
+    )
+    if(inherits(possibleError, "error")) next
+    # print(i)
+  }
+
+  resultXframe$Random_forest<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    Xrf<-randomForest(Rank~.,data=trainlist[[i]])
+    rftest<-predict(Xrf,test)
+    rfagg<-rftest==test$Rank
+    accuracy<-prop.table(table(rfagg))[c("TRUE")]
+    resultXframe$Random_forest[i]<-accuracy
+  }
+
+  resultXframe$Decision_tree_adaboost<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    Xada<-ada(Rank~.,data = trainlist[[i]],iter=50)
+    adatest<-predict(Xada,test)
+    adaagg<-adatest==test$Rank
+    accuracy<-prop.table(table(adaagg))[c("TRUE")]
+    resultXframe$Decision_tree_adaboost[i]<-accuracy
+  }
+
+  resultXframe$GLM<-rep(NA,length(allfeat))
+  for (i in 1:length(allfeat)) {
+    euglm<-glm(Rank~.,data = trainlist[[i]],family = "binomial")
+    glmtest<-predict(euglm,test)
+    glmtest<-ifelse(glmtest<0,0,1)
+    glmagg<-glmtest==test$Rank
+    accuracy<-prop.table(table(glmagg))[c("TRUE")]
+    resultXframe$GLM[i]<-accuracy
+  }
+
+  resultXframe$SVM_best_Gamma_Cost<-rep(NA,length(allfeat))  
+  for (i in 1:length(allfeat)) {
+    set.seed(1234)
+    svmtune<-tune.svm(Rank~.,data = trainlist[[i]],gamma = 10^(-6:1),cost = 10^(-10:10))
+    svmed<-svm(Rank~.,data=trainlist[[i]],gamma=svmtune$best.parameters[1],cost=svmtune$best.parameters[2])
+    svmtest<-predict(svmed,test)
+    svmagg<-svmtest==test$Rank
+    accuracy<-prop.table(table(svmagg))[c("TRUE")]
+    resultXframe$SVM_best_Gamma_Cost[i]<-accuracy
+  }
+  resultXframe$origin<-NULL
+  if(option==1){return(resultXframe)}
+}
+```
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->

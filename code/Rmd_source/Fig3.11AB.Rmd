@@ -1,0 +1,167 @@
+---
+title: "Figure 3.11AB"
+subtitle: "[Back To Index](index.html)"
+author: "SOCR Team"
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warings = FALSE)
+```
+
+
+
+# Econometrics, Business and Market Analysis Example(s)
+
+
+
+
+```{r eval=T, message=F, warning=F}
+# To Render the rgl/contour3d window in the DOCX/HTML output via knitter, we can use the following protocol:
+library(misc3d)
+library(rgl)
+library(DT)
+```
+
+```{r}
+load("./Rdata/Fig3.11.Rdata")
+dim(X1)
+dim(img1)
+```
+
+## Data Source Type
+
+### X1
+```{r, eval=FALSE}
+# 1. download the 4D fMRI data
+fMRIURL <- "http://socr.umich.edu/HTML5/BrainViewer/data/fMRI_FilteredData_4D.nii.gz"
+fMRIFile <- file.path(tempdir(), "fMRI_FilteredData_4D.nii.gz")
+(fMRIVolume <- readNIfTI(fMRIFile, reorient=FALSE))
+
+# 2. extract the time-corse of 2D mid-axial slice (3D) hypervolume
+fMRI_2D_z11 <- fMRIVolume[ , , 11, ]
+X1 = fft(fMRI_2D_z11)
+```
+
+### img1
+```{r, eval = FALSE}
+planes_half <- ceiling(dim(fMRI_2D_z11)[3]/2)
+# apply log transform to temper the intensity range
+img1 <- TCIU::fftshift(Re(log(1+X1)),3)[ , , (1:(planes_half+1))]
+```
+
+
+## Figure 3.11A
+
+```{r Figure 3.11A, eval = TRUE}
+# Opening rgl window to display in html page
+invisible(open3d(useNULL = T, windowRect = c(0,0,800,800), zoom = 1))
+display1 <- 
+  contour3d(img1, level = c(7, 12), alpha = c(0.3, 0.5), add = TRUE,
+            color=c("yellow", "red"), perspective=T, distance=0.8)
+
+# Aspect ratio and axes
+aspect3d(1.0, 1.0, 1.0)
+axes3d()
+
+# Display scene
+rglwidget(width = 800, height = 600, elementId = "model1") %>% 
+  toggleWidget(ids = display1, label = "Show")
+```
+
+## Figure 3.11B
+
+```{r Figure 3.11B, eval = FALSE}
+# Show the Phases
+# Opening rgl window to display in html page
+invisible(open3d(useNULL = T, windowRect = c(0,0,800,800), zoom = 1))
+X1_phase_nill <- atan2(0, Re(X1))
+
+display1 <- 
+  contour3d(X1_phase_nill, level = c(0, 2), 
+            alpha = c(0.3, 0.5), add = TRUE, color=c("yellow", "red"))
+
+# Aspect ratio and axes
+aspect3d(1.0, 1.0, 1.0)
+axes3d()
+
+# Display scene
+rglwidget(width = 800, height = 600, elementId = "model1") %>% 
+  toggleWidget(ids = display1, label = "Show")
+```
+
+Running the above chunk may require a substantial amount of memory, the chunk below is a sub-sample of X1_phase_nill used to display a similar cuboid:
+
+```{r}
+# Show the Phases
+# Opening rgl window to display in html page
+invisible(open3d(useNULL = T, windowRect = c(0,0,800,800), zoom = 1))
+X1_phase_nill <- atan2(0, Re(X1))
+
+X1_phase_nill_subsample = 
+  X1_phase_nill[
+    sample( length(X1_phase_nill[,1,1]), length(X1_phase_nill[,1,1])*0.5, replace = TRUE),
+    sample( length(X1_phase_nill[1,,1]), length(X1_phase_nill[1,,1])*0.5, replace = TRUE),
+    sample( length(X1_phase_nill[1,1,]), length(X1_phase_nill[1,1,])*0.5, replace = TRUE)]
+
+display2 <- 
+  contour3d(X1_phase_nill_subsample, level = c(0, 2), 
+            alpha = c(0.3, 0.5), add = TRUE, color=c("yellow", "red"))
+
+# Aspect ratio and axes
+aspect3d(1.0, 1.0, 1.0)
+axes3d()
+
+# Display scene
+rglwidget(width = 800, height = 600, elementId = "model2") %>% 
+  toggleWidget(ids = display2, label = "Show")
+```
+
+
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->

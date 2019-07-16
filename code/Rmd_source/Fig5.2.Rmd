@@ -1,0 +1,404 @@
+---
+title: "Figure 5.2"
+subtitle: "[Back To Index](index.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warings = FALSE)
+```
+
+
+
+```{r,eval=TRUE,echo=FALSE,message=F, warning=F}
+# FFT SHIFT
+fftshift <- function(img_ff, dim = -1) {
+
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]
+  # planes <- dim(img_ff)[3]
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- ceiling(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- ceiling(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+  
+  #swap_side2side <- function(img_ff) {
+  #  planes_half <- ceiling(planes/2)
+  #  return(cbind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], img_ff[1:rows, 1:cols, 1:planes_half]))
+  #}
+
+  if (dim == -1) {
+    img_ff <- swap_up_down(img_ff)
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- ceiling(rows/2)
+    cols_half <- ceiling(cols/2)
+    planes_half <- ceiling(planes/2)
+    
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+
+ifftshift <- function(img_ff, dim = -1) {
+
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]    
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- floor(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- floor(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+
+  if (dim == -1) {
+    img_ff <- swap_left_right(img_ff)
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- floor(rows/2)
+    cols_half <- floor(cols/2)
+    planes_half <- floor(planes/2)
+    
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+```
+
+
+
+
+# 2D FT and Image Synthesis
+
+
+Let's try to perform the same image synthesis to reconstruct the Cyrillic and English alphabet images.
+```{r, message=F, warning=F}
+library(EBImage)
+library(imager)
+```
+
+```{r}
+img_CyrAlpha <- load.image("BulgAlpha.jpg")	
+# plot(img_CyrAlpha, axes = F)	
+# Grayscaled # img_gray <- im[ , , 1, 1]
+img_CyrAlpha <- matrix(img_CyrAlpha, nrow = dim(img_CyrAlpha)[1], ncol = dim(img_CyrAlpha)[2])
+# EBImage::display(img_CyrAlpha, title='Image', method = "raster")
+img_EngAlpha <- load.image("EngAlpha.jpg")
+img_EngAlpha <- matrix(img_EngAlpha, nrow = dim(img_EngAlpha)[1], ncol = dim(img_EngAlpha)[2])
+# add an extra zero column at the end to make the 2D Alphabet images homologous: 411 353
+img_EngAlpha <- cbind(img_EngAlpha, rep(0, dim(img_EngAlpha)[1])) 
+dim(img_CyrAlpha); dim(img_EngAlpha)
+
+# FFT
+ft_img_CyrAlpha <- fft(img_CyrAlpha)  # fftw2d # Display Re(FT): display(fftshift(ft_img_CyrAlpha))
+ft_img_EngAlpha <- fft(img_EngAlpha)  # display(fftshift(ft_img_EngAlpha))
+
+# Magnitude and Phase
+mag_ft_img_CyrAlpha <- sqrt(Re(ft_img_CyrAlpha)^2+Im(ft_img_CyrAlpha)^2)
+mag_ft_img_EngAlpha <- sqrt(Re(ft_img_EngAlpha)^2+Im(ft_img_EngAlpha)^2)
+
+# Phase  <- atan(Im(img_ff)/Re(img_ff))
+phase_ft_img_CyrAlpha  <- atan2(Im(ft_img_CyrAlpha), Re(ft_img_CyrAlpha))
+phase_ft_img_EngAlpha  <- atan2(Im(ft_img_EngAlpha), Re(ft_img_EngAlpha))
+
+# FFT SHIFT
+shift_ft_img_CyrAlpha <- fftshift(mag_ft_img_CyrAlpha)
+shift_ft_img_EngAlpha <- fftshift(mag_ft_img_EngAlpha)
+# Display FT
+EBImage::display(log(shift_ft_img_CyrAlpha), title="FT Magnitude (Cyrillic Alphabet)")
+EBImage::display(log(shift_ft_img_EngAlpha), title="FT Phase (English Alphabet)")
+
+# ImplicitlyInvert the FT (IFT)
+fftinv <- function( x ) { fft( x, inverse=TRUE ) / length( x ) }
+EBImage::display(Re(fftinv(ft_img_CyrAlpha)),title="(IFT o FT) Magnitude (Cyrillic Alphabet)")
+EBImage::display(Re(fftinv(ft_img_EngAlpha)),title="(IFT o FT) Magnitude (English Alphabet)")
+
+############## FT of img_CyrAlpha  
+#X1 = fft(img_CyrAlpha); display(fftshift(Re(X1)), method = "raster")
+#X1_mag <- sqrt(Re(X1)^2+Im(X1)^2); display(fftshift(X1_mag), method = "raster") # magnitude only
+#X1_phase  <- atan2(Im(X1), Re(X1)); display(fftshift(X1_phase), method = "raster") # phase only
+#####  Implicit Automated IFT
+#hat_X1 = Re(fft(X1, inverse = T)/length(square_arr)); display(hat_X1, method = "raster")  
+###### Manually invert the FT (IFT) using the magnitudes and phases
+#Real1 = X1_mag * cos(X1_phase)
+#Imaginary1 = X1_mag * sin(X1_phase)
+#man_hat_X1 = Re(fft(Real1+1i*Imaginary1, inverse = T)/length(X1)); display(man_hat_X1, method = "raster")  
+
+############### FT of img_EngAlpha
+#X2 = fft(circle_arr); display(Re(X2), method = "raster")
+#X2_mag <- sqrt(Re(X2)^2+Im(X2)^2); display(X2_mag, method = "raster") # magnitude only
+#X2_phase  <- atan2(Im(X2), Re(X2)); display(X2_phase, method = "raster") # phase only
+######  Implicit Automated IFT
+# hat_X2 = Re(fft(X2, inverse = T)/length(circle_arr)); display(hat_X2, method = "raster") 
+###### Manually invert the FT (IFT) using the magnitudes and phases
+#Real2 = X2_mag * cos(X2_phase)
+#Imaginary2 = X2_mag * sin(X2_phase)
+#man_hat_X2 = Re(fft(Real2+1i*Imaginary2, inverse = T)/length(X1)); display(man_hat_X2, method = "raster")  
+
+# IFT Magnitude=mag_ft_img_CyrAlpha   AND  Phase=phase_ft_img_EngAlpha
+Real = mag_ft_img_CyrAlpha * cos(phase_ft_img_EngAlpha)
+Imaginary = mag_ft_img_CyrAlpha * sin(phase_ft_img_EngAlpha)
+ift_MagCyr_PhaseEng = Re(fft(Real+1i*Imaginary, inverse = T)/length(mag_ft_img_CyrAlpha))
+EBImage::display(ift_MagCyr_PhaseEng, method = "raster", title="(IFT o FT) Magnitude=Cyr | Phase=Eng")
+
+# IFT Magnitude=mag_ft_img_EngAlpha and Phase=phase_ft_img_CyrAlpha
+Real = mag_ft_img_EngAlpha * cos(phase_ft_img_CyrAlpha)
+Imaginary = mag_ft_img_EngAlpha * sin(phase_ft_img_CyrAlpha)
+ift_MagEng_PhaseCyr = Re(fft(Real+1i*Imaginary, inverse = T)/length(mag_ft_img_CyrAlpha))
+EBImage::display(ift_MagEng_PhaseCyr, method = "raster", title="(IFT o FT) Magnitude=Eng | Phase=Cyr")
+
+# IFTMagnitude=mag_ft_img_CyrAlpha  and  Phase=Nil
+Real = mag_ft_img_CyrAlpha * cos(0)
+Imaginary = mag_ft_img_CyrAlpha * sin(0)
+ift_MagCyr_PhaseNil = Re(ifftshift(fft(Real+1i*Imaginary, inverse = T)/length(mag_ft_img_CyrAlpha)))
+EBImage::display(ift_MagCyr_PhaseNil, method = "raster")
+
+# IFT Magnitude=mag_ft_img_EngAlpha and Phase=Nil
+Real = mag_ft_img_EngAlpha * cos(0)
+Imaginary = mag_ft_img_EngAlpha * sin(0)
+ift_MagEng_PhaseNil = Re(ifftshift(fft(Real+1i*Imaginary, inverse = T)/length(mag_ft_img_CyrAlpha)))
+EBImage::display(ift_MagEng_PhaseNil, method = "raster")
+```
+
+
+# Appendix: Functions Used
+
+## fftshift()
+
+```{r}
+# FFT SHIFT
+#' This function is useful for visualizing the Fourier transform with the zero-frequency 
+#' component in the middle of the spectrum.
+#' 
+#' @param img_ff A Fourier transform of a 1D signal, 2D image, or 3D volume.
+#' @param dim Number of dimensions (-1, 1, 2, 3).
+#' @return A properly shifted FT of the array.
+#' 
+fftshift <- function(img_ff, dim = -1) {
+
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]
+  # planes <- dim(img_ff)[3]
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- ceiling(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- ceiling(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+  
+  #swap_side2side <- function(img_ff) {
+  #  planes_half <- ceiling(planes/2)
+  #  return(cbind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], img_ff[1:rows, 1:cols, 1:planes_half]))
+  #}
+
+  if (dim == -1) {
+    img_ff <- swap_up_down(img_ff)
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- ceiling(rows/2)
+    cols_half <- ceiling(cols/2)
+    planes_half <- ceiling(planes/2)
+    
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+```
+
+## ifftshift()
+
+```{r}
+# IFFT SHIFT
+#' This function is useful for moving back the zero-frequency component in the middle of the spectrum
+#' back to (0,0,0).  It rearranges in reverse (relative to fftshift()) the indices appropriately,
+#' so that the image can be correctly reconstructed by the IFT in spacetime
+#' 
+#' @param img_ff An Inverse Fourier transform of a 1D signal, 2D image, or 3D volume.
+#' @param dim Number of dimensions (-1, 1, 2, 3).
+#' @return A properly shifted IFT of the input array.
+#' 
+ifftshift <- function(img_ff, dim = -1) {
+
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]    
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- floor(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- floor(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+
+  if (dim == -1) {
+    img_ff <- swap_left_right(img_ff)
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- floor(rows/2)
+    cols_half <- floor(cols/2)
+    planes_half <- floor(planes/2)
+    
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+```
+
+## fftinv()
+
+```{r}
+# Implicitly Invert the FT (IFT)
+#' This function does the IFT and scales appropriately the  result to ensure IFT(FT()) = I()
+#' 
+#' @param x FT of a dataset.
+#' @return The IFT of the input array.
+#'
+fftinv <- function( x ) { 
+  fft( x, inverse=TRUE ) / length( x ) 
+  }
+```
+
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->

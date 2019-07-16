@@ -1,0 +1,447 @@
+---
+title: "Figure 3.6"
+subtitle: "[Back To Index](index.html)"
+author: "SOCR Team"
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# The effects of Kime-Magnitudes and Kime-Phases
+
+Jointly, the *amplitude spectrum* (magnitudes) and the *phase spectrum* (phases) uniquely describe the spacetime representation of a signal. However, the importance of each of these two spectra is not equivalent. In general, the effect of the phase spectrum is more important compared to the corresponding effects of the amplitude spectrum. In other words, the magnitudes are less susceptible to noise or the accuracy of their estimations. The effects of magnitude perturbations are less critical relative to proportional changes in the phase spectrum. For instance, particularly in terms of spacetime locations where the signal is zero, the signal can be reconstructed (by the IFT) relatively accurately using incorrect magnitudes solely by using the correct phases [REF](https://doi.org/10.1533/9780857099457.1.75). For a real valued signal $f$, suppose the amplitude of its Fourier transform, $FT(f)=\hat{f}$, is $A(\omega) > 0, \forall \omega$, then:
+$$f(x)=IFT(\hat{f})=Re\left (\frac{1}{2\pi}\int_{R} 
+\underbrace{A(\omega)e^{i\phi(\omega)}}_{\hat{f}(\omega)}\ e^{i\omega x}d\omega \right)=
+Re\left (\frac{1}{2\pi}\int_{R}A(\omega)e^{i(\phi(\omega)+\omega x)}d\omega\right) =
+\frac{1}{2\pi}\int_{R} {A(\omega) \cos(\phi(\omega)+\omega x)}d\omega.$$
+
+Thus, the zeros of $f(x)$ occur for $\omega x+ \phi(\omega)=\pm k\frac{\pi}{2}$, $k= 1,2,3,.$.
+
+A solely amplitude driven reconstruction $\left ( f_A(x)=IFT(\hat{f})=\frac{1}{2\pi}\int_{R}\underbrace{A(\omega)}_{no\ phase}\ e^{i\omega x}d\omega \right)$ would yield worse results than a solely-phase based reconstruction $\left ( f_{\phi}(x)=IFT(\hat{f})=\frac{1}{2\pi} \int_{R}\underbrace{e^{i\phi(\omega)}}_{no\ amplitude}\ e^{i\omega x}d\omega\right )$. The latter would have a different total energy from the original signal, however, it would include some signal recognizable features as the zeroth-level curves of the original $f$ and the phase-only reconstruction $f_{\phi}$ signals will be preserved. This suggests that the *Fourier phase* of a signal is more informative than the *Fourier amplitude*, i.e., the magnitudes are robust to errors or perturbations.
+
+In X-ray crystallography, crystal structures are bombarded by particles/waves, which are diffracted by the crystal to yield the observed diffraction spots or patterns. Each diffraction spot corresponds to a point in the reciprocal lattice and represents a particle wave with some specific amplitude and a relative phase. Probabilistically, as the particles (e.g., gamma-rays or photons) are reflected from the crystal, their scatter directions are proportional to the square of the wave amplitude, i.e., the square of the wave Fourier magnitude. X-rays capture these amplitudes as counts of particle directions, but miss all information about the relative phases of different diffraction patterns.
+
+Spacekime analytics are analogous to X-ray crystallography, DNA helix modeling, and other applications, where only the Fourier magnitudes (time), i.e., power spectrum, is only observed, but not the phases (kime-directions), which need to be estimated to correctly reconstruct the intrinsic 3D object structure [REF](https://www.sciencedirect.com/science/article/pii/B9781904275268500051), in our case, the correct spacekime analytical inference. Clearly, signal reconstruction based solely on either the amplitudes or the phases is an ill-posed problem, i.e., there will be many *alternative solutions*. In practice, such *signal* or *inference* reconstructions are always application-specific, rely on some a priori knowledge on the process (or objective function), or depend an information-theoretic criteria to derive conditional solutions. Frequently, such solutions are obtained via least squares, maximum entropy criteria, maximum a posteriori distributions, Bayesian estimations, or simply by approximating the unknown amplitudes or phases using prior observations, similar processes, or theoretical models.
+
+# Solving the Missing Kime-Phase Problem
+
+There are many alternative solutions to the problem of estimating the unobserved kime-phases. All solutions depend on the quality of the data (e.g., noise), the signal energy (e.g., strength of association between covariates and outcomes), and the general experimental design. There can be rather large errors in the phase reconstructions, which will in turn effect the final spacekime analytic results. Most phase-problem solutions are based on the idea that having some *prior knowledge* about the characteristics of the experimental design (case-study phenomenon) and the desired inference (spacekime analytics). For instance, if we artificially *load the energy* of the case-study (e.g., by lowering the noise, increasing the SNR, or increasing the strength of the relation between explanatory and outcome variables), the phases computed from the this stronger-signal dataset will be more accurate representations than the original phase estimates. Examples of phase-problem solutions include *energy modification* and *fitting and refinement* methods.
+
+## Energy Modification Strategies
+
+In general, *energy modification* techniques rely on prior knowledge, testable hypotheses, or intuition to modify the dataset by strengthening the *expected* relation we are trying to uncover using spacekime analytics.
+
+### Kime-phase noise distribution flattening
+
+In many practical applications, part of the dataset (including both cases and features)  include valuable information, whereas the rest of the data may include irrelevant, noisy, or disruptive information. 
+
+Clearly, we can't explicitly untangle these two components, however, we do expect that the irrelevant data portion would yield uninformative/unimportant kime-phases, which may be used to estimate the kime-phase noise-level and noise-distribution. Intuitively, if we modify the dataset to flatten the irrelevant kime-phases, the estimates of the corresponding true-signal kime-phases may be more accurate or more representative. We can think of this process as using kime-phase information from some known strong features to improve the kime-phase information of other particular features. Kime-phase noise distribution flattening requires that the kime-phases be good enough to detect the boundaries between the strong-features and the rest.
+
+### Multi-sample Kime-Phase Averaging
+
+It's natural to assume that multiple instances of the same process would yield similar analytics and inference results. For large datasets, we can use ensemble methods (e.g., SuperLearner, and CBDA) to iteratively generate independent samples, which would be expected to lead to analogous kime-phase estimated and analytical results. This, we expect that when salient features are extracted by spacekime analytics based on independent samples, their kime-phase estimates should be highly associated (e.g., correlated), albeit perhaps not identical. However, weak features would exhibit exactly the opposite effect - their kime-phases may be highly variable (noisy). By averaging the kime-phases, noisy-areas in the dataset may cancel out, whereas, patches of strong-signal may preserve the kime-phase details, which would lead to increased kime forecasting accuracy and reproducibility of the kime analytics.
+
+### Histogram equalization
+
+As common experimental designs and similar datasets exhibit analogous characteristics, the corresponding spacekime analytics are also expected to be synergistic. Spacekime inference that does not yield results in some controlled or expected range, may be indicative of incorrect kime-phase estimation.  We can use histogram equalization methods to improve the kime-phase estimates. This may be accomplished by altering the distribution of kime-phases to either match the phase distribution of other similar experimental designs or generate more expected spacekime analytical results.
+
+### Fitting and refinement
+
+Related to *energy modificaiton* strategies, the *fitting and refinement* technique capitalizes on the fact that strong energy datasets tend to have a smaller set of salient features. So, if we construct case-studies with some strong features, the corresponding kime-phases will be more accurate, and the resulting inference/analytics will be more powerful and highly reproducible. Various classification, regression, supervised and unsupervised methods, and other model-based techniques allow us to both fit a model (estimate coefficients and structure) as well as apply the model for outcome predictions and forecasting. Such models permit control over the characteristics of individual features and multi-variate inter-relations, which can be can be exploited to gather valuable kime-phase information. Starting with a reasonable guess (kime-phase prior), the *fitting and refinement* technique can be applied iteratively to (1) reconstructing the data into spacetime using the kime-phase estimates, (2) fit or estimate the spacekime analytical model, (3) compare the analytical results and inference to expected outcomes, and (4) refine the kime-phase estimator aiming to gain better outcomes (#3). Indeed, other *energy modificaiton* strategies (e.g., averaging or flattening) can be applied before a new iteration to build a new model is initiated (#1 and #2). 
+
+## Data Source Type
+
+```{r}
+library(EBImage)
+library(TCIU)
+```
+
+```{r}
+square_arr <- matrix(nrow=256, ncol=256)
+circle_arr <- matrix(nrow=256, ncol=256)
+
+for (i in 1:256) {
+  for (j in 1:256) {
+    if ( abs(i-128) < 30 && abs(j-128) < 30) 
+      square_arr[i,j]=1 # sqrt((i-128)^2+(j-128)^2)/30
+    else square_arr[i,j]=0
+    if ( sqrt((i-128)^2 + (j-128)^2)<30) 
+      circle_arr[i,j]=1 # 1-sqrt((i-128)^2+(j-128)^2)/30
+    else circle_arr[i,j]=0
+  }
+}
+```
+
+## Figure 3.6A
+
+```{r}
+#image(square_arr); image(circle_arr)
+display(square_arr, method = "raster") # display(circle_arr, method = "raster")
+```
+
+```{r Figure 3.6A Output, echo=FALSE}
+## Figure 3.6A Output
+png("../Figures/Fig3.6A.png",width = 480,height = 480, res = 100)
+display(square_arr, method = "raster")
+dev.off()
+```
+
+
+```{r}
+X1 = fft(square_arr)
+X1_mag <- sqrt(Re(X1)^2+Im(X1)^2); display(fftshift(X1_mag), method = "raster") 
+X1_phase  <- atan2(Im(X1), Re(X1))
+
+# FT of Circle # No shift applied here (perhaps should be consistent or just show the difference?)
+X2 = fft(circle_arr) # display(Re(X2), method = "raster")
+X2_mag <- sqrt(Re(X2)^2+Im(X2)^2) # display(X2_mag, method = "raster") # magnitude only
+X2_phase  <- atan2(Im(X2), Re(X2)) # display(X2_phase, method = "raster") # phase only
+```
+
+
+
+```{r}
+# Take 2: IFT Magnitude= Square and Phase = Square + IID noise (N(0,3/2))
+set.seed(1234)
+IID_noise <- matrix(rnorm(prod(dim(X1_phase)), mean=0, sd=1.5), nrow=dim(X1_phase)[1])
+dim(IID_noise) # 256 256
+plot(density(IID_noise), xlim=c(-8,8), col="blue", lwd=2)
+lines(density(X1_phase), col="red", lwd=2)
+Real = X1_mag * cos(X1_phase + IID_noise)
+Imaginary = X1_mag * sin(X1_phase + IID_noise)
+ift_X1mag_X1phase_Noise = Re(fft(Real+1i*Imaginary, inverse = T)/length(X1))
+```
+
+## Figure 3.6B1
+
+```{r}
+display(ift_X1mag_X1phase_Noise, method = "raster")
+```
+
+
+```{r Figure 3.6B1 Output, echo=FALSE}
+## Figure 3.6B1 Output
+png("../Figures/Fig3.6B1.png",width = 480,height = 480, res = 100)
+display(ift_X1mag_X1phase_Noise, method = "raster")
+dev.off()
+```
+
+```{r}
+# windows(width=10, height=8) # For windows users
+x11(width=10, height=8)
+mixed_density <- density(X1_phase + IID_noise)
+mixed_density_mod2pi <- density((X1_phase + IID_noise)%%(2*pi) -pi)
+```
+
+## Figure 3.6B2
+
+```{r}
+plot(mixed_density, 
+     xlim=c(-8,8), ylim=c(0,0.17), col="blue", lwd=2,  # should density be modulo %%(2*pi)?
+     main="Phase Distributions: Raw Square, Square+IID N(m=0,s=3/2), Mixed Phases mod 2*Pi", 
+     cex.main=0.8, xlab = "Phase", ylab = "Density")
+lines(density(X1_phase), col="red", lwd=4)
+lines(mixed_density_mod2pi, col="green", lwd=2)
+text(x=3.2, y=-0.005, expression(pi))
+text(x=-3.2, y=-0.005, expression(-pi))
+legend("center", 
+       legend=c("(Raw) Square Phases", "Square + N(0,1.5)", 
+                expression(paste("Square + N(0,1.5) mod 2*", pi))),
+       col=c("red","blue", "green"), lty=1, lwd=c(4,2,2), cex=1.0, y.intersp=1.0,
+       x.intersp=1.0, title = "Phases", bty = "n")
+```
+
+```{r Figure 3.6B2 Output, echo=FALSE}
+## Figure 3.6B2 Output
+png("../Figures/Fig3.6B2.png",width = 1000,height = 600, res = 100)
+plot(mixed_density, xlim=c(-8,8), 
+     ylim=c(0,0.17), col="blue", lwd=2,  # should density be modulo %%(2*pi)?
+     main="Phase Distributions: Raw Square, Square+IID N(m=0,s=3/2), Mixed Phases mod 2*Pi", 
+     cex.main=0.8, xlab = "Phase", ylab = "Density")
+lines(density(X1_phase), col="red", lwd=4)
+lines(mixed_density_mod2pi, col="green", lwd=2)
+text(x=3.2, y=-0.005, expression(pi))
+text(x=-3.2, y=-0.005, expression(-pi))
+legend("center", 
+       legend=c("(Raw) Square Phases", "Square + N(0,1.5)", 
+                          expression(paste("Square + N(0,1.5) mod 2*", pi))),
+       col=c("red","blue", "green"), lty=1, lwd=c(4,2,2), cex=1.0, y.intersp=1.0,
+       x.intersp=1.0, title = "Phases", bty = "n")
+dev.off()
+```
+
+```{r}
+# randomly sample 10 indices to pairwise plot
+ind1 <- sample(dim(X1_phase)[1], 10); ind2 <- sample(dim(X1_phase)[2], 10) 
+corr <- cor.test((X1_phase)[ind1,ind2], 
+                 (X1_phase + IID_noise)[ind1,ind2], method = "pearson", conf.level = 0.99)
+```
+
+## Figure 3.6B3
+
+```{r}
+plot((X1_phase)[ind1,ind2], (X1_phase + IID_noise)[ind1,ind2],
+     main=
+       sprintf("Square Image: Raw vs. IID N(m=0,s=3/2) Noise-corrupted Phases: Corr=%s CI=(%s,%s)", 
+               round(cor(as.vector(X1_phase), as.vector(X1_phase + IID_noise)), digits=3),
+               round(corr$conf.int[1], digits=2),
+               round(corr$conf.int[2], digits=2)), 
+     cex.main=0.8, xlab = "Raw", ylab = "Phase + N(0,1.5)")
+abline(
+  lm(as.vector((X1_phase + IID_noise)[ind1,ind2]) ~ as.vector((X1_phase)[ind1,ind2])), 
+  col="red", lwd=2)
+```
+
+```{r Figure 3.6B3 Output, echo=FALSE}
+## Figure 3.6B3 Output
+png("../Figures/Fig3.6B3.png",width = 1000,height = 600, res = 100)
+plot((X1_phase)[ind1,ind2], (X1_phase + IID_noise)[ind1,ind2],
+     main=
+       sprintf("Square Image: Raw vs. IID N(m=0,s=3/2) Noise-corrupted Phases: Corr=%s CI=(%s,%s)", 
+               round(cor(as.vector(X1_phase), as.vector(X1_phase + IID_noise)), digits=3),
+               round(corr$conf.int[1], digits=2),
+               round(corr$conf.int[2], digits=2)), 
+     cex.main=0.8,xlab = "Raw", ylab = "Phase + N(0,1.5)")
+abline(
+  lm(as.vector((X1_phase + IID_noise)[ind1,ind2]) ~ as.vector((X1_phase)[ind1,ind2])), 
+  col="red", lwd=2)
+dev.off()
+```
+
+
+```{r}
+# Take 2: Same level of noise on Amplitudes:
+# IFT Magnitude= Square + 50*IID noise (N(0,3/2)) and Phase = Square
+set.seed(1234)
+IID_noise <- matrix(rnorm(prod(dim(X1_mag)), mean=0, sd=3/2), nrow=dim(X1_mag)[1])
+dim(IID_noise) # 256 256
+plot(density(X1_mag+50*IID_noise), xlim=c(0,40), ylim=c(0,1.5), col="blue", lwd=2)
+lines(density(X1_mag), col="red", lwd=2)
+corr <- cor.test((X1_mag+50*IID_noise)[ind1,ind2], 
+                 (X1_mag)[ind1,ind2], method = "pearson", conf.level = 0.99)
+```
+
+## Figure 3.6C3
+
+```{r, fig.height=5, fig.width=8}
+plot(X1_mag[ind1,ind2], abs(X1_mag+50*IID_noise)[ind1,ind2], xlim=c(0,10), ylim=c(0,200),
+     main=
+       sprintf("Square Image: Mag + 50*IID N(m=0,s=3/2) Noise-corrupted vs. Raw Amplitudes: Corr=%s CI=(%s,%s)", 
+               round(cor(as.vector(X1_mag), as.vector(X1_mag + 50*IID_noise)), digits=3),
+               round(corr$conf.int[1], digits=2),
+               round(corr$conf.int[2], digits=2)), 
+     cex.main=0.8, xlab = "Raw", ylab = "Amplitude + 50*N(0,1.5)")
+abline(
+  lm(as.vector(abs(X1_mag+50*IID_noise)[ind1,ind2]) ~ as.vector((X1_mag)[ind1,ind2])), 
+  col="red", lwd=2)
+```
+
+```{r Figure 3.6C3 Output, echo=FALSE}
+## Figure 3.6C3 Output
+png("../Figures/Fig3.6C3.png",width = 1000,height = 600, res = 100)
+plot(X1_mag[ind1,ind2], 
+     abs(X1_mag+50*IID_noise)[ind1,ind2], xlim=c(0,10), ylim=c(0,200),
+     main=
+       sprintf("Square Image: Mag + 50*IID N(m=0,s=3/2) Noise-corrupted vs. Raw Amplitudes: Corr=%s CI=(%s,%s)", 
+               round(cor(as.vector(X1_mag), as.vector(X1_mag + 50*IID_noise)), digits=3),
+               round(corr$conf.int[1], digits=2),
+               round(corr$conf.int[2], digits=2)), 
+     cex.main=0.8, xlab = "Raw", ylab = "Amplitude + 50*N(0,1.5)")
+abline(
+  lm(as.vector(abs(X1_mag+50*IID_noise)[ind1,ind2]) ~ as.vector((X1_mag)[ind1,ind2])), 
+  col="red", lwd=2)
+dev.off()
+```
+
+
+
+```{r}
+Real = (X1_mag+ 50*IID_noise) * cos(X1_phase)
+Imaginary = (X1_mag+ 50*IID_noise) * sin(X1_phase)
+ift_X1mag_X1phase_Noise = Re(fft(Real+1i*Imaginary, inverse = T)/length(X1))
+
+```
+
+## Figure 3.6C1
+
+```{r}
+display(ift_X1mag_X1phase_Noise, method = "raster")
+```
+
+```{r Figure 3.6C1 Output, echo=FALSE}
+## Figure 3.6C1 Output
+png("../Figures/Fig3.6C1.png",width = 480,height = 480, res = 100)
+display(ift_X1mag_X1phase_Noise, method = "raster")
+dev.off()
+```
+
+
+
+
+```{r}
+# Magnitude distributions
+mixed_density <- density(abs(X1_mag + 50*IID_noise))
+```
+
+## Figure 3.6C2
+
+```{r, fig.height=5, fig.width=8}
+# windows(width=6, height=5) # For windows users
+x11(width=7, height=5)
+plot(mixed_density, xlim=c(0,200), col="blue", lwd=2, 
+     main="Magnitude Distributions: Raw Square, Square+50*N(m=0,s=3/2)", 
+     xlab = "Magnitude", ylab = "Density")
+lines(density(X1_mag), col="red", lwd=4)
+legend("topright", legend=c("(Raw) Square Magnitudes", "Square + 50*N(0,1.5)"),
+       col=c("red","blue"), lty=1, lwd=c(4,2), cex=1.0, y.intersp=1.0,
+       x.intersp=1.0, title = "Magnitudes", bty = "n")
+```
+
+```{r Figure 3.6C2 Output, echo=FALSE}
+## Figure 3.6C2 Output
+png("../Figures/Fig3.6C2.png",width = 1000,height = 600, res = 100)
+plot(mixed_density, xlim=c(0,200), col="blue", lwd=2, 
+     main="Magnitude Distributions: Raw Square, Square+50*N(m=0,s=3/2)", 
+     xlab = "Magnitude", ylab = "Density")
+lines(density(X1_mag), col="red", lwd=4)
+legend("topright", legend=c("(Raw) Square Magnitudes", "Square + 50*N(0,1.5)"),
+       col=c("red","blue"), lty=1, lwd=c(4,2), cex=1.0, y.intersp=1.0,
+       x.intersp=1.0, title = "Magnitudes", bty = "n")
+dev.off()
+```
+
+
+```{r}
+#### Take 3: Linear Transform of the Phases: SquarePhase ~ CirclePhase
+# Take 2: IFT Magnitude= Square and Phase = LM(CirclePhase)
+lm_Squ_Cir <- lm(as.vector(X1_phase) ~ as.vector(X2_phase))
+plot(as.vector(X2_phase), as.vector(X1_phase), col="blue", lwd=2, 
+     xlab = "Circle", ylab = "Square",
+     main=
+       sprintf("Linear Phase Transformation (SquarePhase ~ CirclePhase), Corr(Cir, Squ)=%s",
+               round(cor(as.vector(X1_phase) , as.vector(X2_phase)), digits=3))) 
+abline(lm_Squ_Cir, col="red", lwd=2)
+Real = X1_mag * cos(lm_Squ_Cir$coefficients[1] + lm_Squ_Cir$coefficients[2]*X2_phase)
+Imaginary = X1_mag * sin(lm_Squ_Cir$coefficients[1] + lm_Squ_Cir$coefficients[2]*X2_phase)
+ift_X1mag_X2phase_LM = Re(fft(Real+1i*Imaginary, inverse = T)/length(X1))
+display(ift_X1mag_X2phase_LM, method = "raster")
+```
+
+
+# Appendix: Functions Used
+
+## fftshift()
+
+```{r}
+# FFT SHIFT
+#' This function is useful for visualizing the Fourier transform with the zero-frequency 
+#' component in the middle of the spectrum.
+#' 
+#' @param img_ff A Fourier transform of a 1D signal, 2D image, or 3D volume.
+#' @param dim Number of dimensions (-1, 1, 2, 3).
+#' @return A properly shifted FT of the array.
+#' 
+fftshift <- function(img_ff, dim = -1) {
+
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]
+  # planes <- dim(img_ff)[3]
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- ceiling(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- ceiling(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+  
+  #swap_side2side <- function(img_ff) {
+  #  planes_half <- ceiling(planes/2)
+  #  return(cbind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], img_ff[1:rows, 1:cols, 1:planes_half]))
+  #}
+
+  if (dim == -1) {
+    img_ff <- swap_up_down(img_ff)
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- ceiling(rows/2)
+    cols_half <- ceiling(cols/2)
+    planes_half <- ceiling(planes/2)
+    
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+```
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->
+

@@ -1,0 +1,492 @@
+---
+title: "Figure 3.3 [Figure 3.1](Fig3.1.html)"
+subtitle: "[Back To Index](index.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warings = FALSE)
+```
+
+
+
+
+# Fourier Transform of images
+
+Let's demonstrate the use of R's `fft()` to calculate the 2D FT of images. Information on data 
+acquisition frequency and block length (in sec) cannot be included into the `fft()` call.
+
+R generates a single 2D vector of the same dimensions as the data containing a list of complex numbers. The function `Mod(fft())` is used to extract the *magnitudes* of the Fourier coefficients, which are computed by:
+$$magnitude = \sqrt{(real * real + imaginary * imaginary)},$$
+where the real and imaginary components are extracted by functions `Re(fft())` and `Im(fft())`, respectively.
+
+The method `fft()` generates only *meaningful frequency* up to half the sampling frequency. The FT returns values of the discrete Fourier transform for both positive and negative frequencies. Although, as sampling a signal in discrete time intervals causes aliasing problems, R yields all frequencies up to the sampling frequency. For instance, sampling a *50 Hz* sine wave and *950 Hz* sine wave with *1000 Hz* will generate identical results, as the FT cannot distinguish between the two frequencies. Hence, the sampling frequency must always be at least twice as high as the expected signal frequency. For each actual frequency in the signal, the FT will give 2 peaks (one at the "actual" frequency and one at sampling frequency minus "actual" frequency). This will make the second half of the magnitude vector a mirror image of the first half.
+
+As long as the sampling frequency is at least twice as high as the expected signal frequency, all *meaningful information* will be contained in the the first half of the magnitude vector. However, a peak in the low frequency range might be present when high "noise" frequency is present in the signal (or image). At this point, the vector of extracted magnitudes is only indexed by the frequencies but has no associated frequencies. To calculate the corresponding frequencies, the FT simply takes (or generates) the index vector (1, 2, 3, ..., length(magnitude vector)) and divides it by the length of the data block (in sec).
+
+
+In 1D, the phases would represent a vector of the same length as the magnitude vector with the phases (0 to $2\pi$ or $-\pi$ to $+\pi$) of each frequency. Phase shifts are translations in space (e.g., x-axis) for a given wave component that are measured in angles (radians). For instance, shifting a wave $f(x)=0.5sin(3wt)+0.25sin(10wt)$ by $\frac{\pi}{2}$ would produce the following Fourier series:
+
+$$f(t)=0.5sin\left (3wt+\frac{\pi}{2}\right )+0.25sin\left (10wt+\frac{\pi}{2}\right ).$$
+
+In 2D, The Fourier transform (FT/IFT) for images is defined by:
+$$\hat{f}(u,v)=F(u,v)=\int_{-\infty}^{\infty}{\int_{-\infty}^{\infty}{f(x,y)e^{-i2\pi(ux+vy)}dxdy}},$$
+$$f(x,y)=\hat{\hat{f}}(x,y)=\hat{F}(x,y)=\int_{-\infty}^{\infty}{\int_{-\infty}^{\infty}{F(u,v)e^{i2\pi(ux+vy)}dudv}},$$
+where $u$ and $v$ are the spatial frequencies, $F(u,v)=F_R(u,v)+iF_I(u,v)$ is a complex number for each pair of arguments, 
+$$|F(u,v)|=\sqrt{F_R^2(u,v)+F_I^2(u,v)}$$
+is the **magnitude** spectrum, and 
+$$arctan\left (\frac{F_I(u,v)}{F_R(u,v)}\right )$$
+is the **phase angle** spectrum.
+
+The complex exponential
+$$e^{-i2\pi(ux+vy)}=cos(2\pi(ux+vy)) +i\ sin(2\pi(ux+vy))$$
+represents the real and imaginary (complex) sinusoidal terms in the 2D plane. The extrema of its real part ($cos(2\pi(ux+vy))$) occur at $2\pi(ux+vy)=n\pi$. Using vector notation, 
+$$2\pi(ux+vy)=2\pi \langle U, X \rangle =n\pi,$$
+where the extrema points $U=(u,v)^T$ and $X=(x,y)^T$ represent sets of equally spaced parallel lines with normal $U$ and wavelength $\frac{1}{\sqrt{u^2+v^2}}$.
+
+Let's define the index *shifting* paradigm associated with the discrete FT, which is simply used for convenience and *better visualizaiton*. It has no other relevance to the actual calculation of the FT and its inverse, IFT.
+
+When applying the forward or reverse generalized discrete FT it is possible to shift the transform sampling in time and frequency domain by some real offset values, $a,b$. Symbolically,
+
+$$\hat{f}(k) = \sum_{n=0}^{N-1} f(n) e^{-\frac{2 \pi i}{N} (k+b) (n+a)} \quad \quad k = 0, \dots, N-1.$$
+
+**Note:** Remember that in `R`, the array indices start with 1, not 0, as in some other languages.
+
+The function `fftshift()` is useful for visualizing the Fourier transform with the zero-frequency component in the middle of the spectrum. Its inverse counterpart, `ifftshift()`, is needed to rearrange again the indices appropriately after the IFT is employed, so that the image is correctly reconstructed in spacetime. The FT only computes half of the frequency spectrum corresponding to the non-negative (positive and zero if the `length(f)` is odd) frequencies in order to save computation time. To preserve the dimensions of the output $\hat{f}=FT(f)$, the second half of the frequency spectrum (the complex conjugate of the first half) is just added at the end of this vector. In a 1D setting, the result of `fft()` is:
+
+$0\ 1\ 2\ 3\ ...\ (freq\ bins > 0)\ ... {\frac{Fs}{2}}$ and $-{\frac{Fs}{2}}\ ... \ (freq\ bins < 0)\ ...\ -3\ -2\ -1.$
+
+where $F_s$ is the frequency sample. The `fftshift` method sets the zero-frequency component in the center of the array, i.e., it just shifts (offsets) the second part with the negative frequency bins to the beginning and the first part to the end of the resulting FT vector, or matrix. Thus, the shifted discrete FT can be *nicely* plotted in the center covering the frequency spectrum from $-{\frac{Fs}{2}}$ on the left to ${\frac{Fs}{2}}$ on the right. This is not necessary, but is used for better visualization aesthetics. To synthesize back the correct image, after using `fftshift` on the FT signal, we always have to undo that re-indexing by using `ifftshift()` on the inverse-FT.
+
+```{r message=F, warning=F}
+# FFT SHIFT
+fftshift <- function(img_ff, dim = -1) {
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]
+  # planes <- dim(img_ff)[3]
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- ceiling(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- ceiling(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+  
+  #swap_side2side <- function(img_ff) {
+  #  planes_half <- ceiling(planes/2)
+  #  return(cbind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], img_ff[1:rows, 1:cols, 1:planes_half]))
+  #}
+
+  if (dim == -1) {
+    img_ff <- swap_up_down(img_ff)
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- ceiling(rows/2)
+    cols_half <- ceiling(cols/2)
+    planes_half <- ceiling(planes/2)
+    
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+
+ifftshift <- function(img_ff, dim = -1) {
+
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]    
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- floor(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- floor(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+
+  if (dim == -1) {
+    img_ff <- swap_left_right(img_ff)
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- floor(rows/2)
+    cols_half <- floor(cols/2)
+    planes_half <- floor(planes/2)
+    
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+```
+
+Now we will present the FT and IFT of a pair of synthetic 2D images (a square and a disk).
+
+
+```{r message=F, warning=F}
+# library(RCurl)
+library(imager)
+
+# install EBImage
+# source("https://bioconductor.org/biocLite.R")
+# biocLite("EBImage")
+library(EBImage)
+```
+
+```{r}
+# Define two synthetic images
+square_arr <- matrix(nrow=256, ncol=256)
+circle_arr <- matrix(nrow=256, ncol=256)
+
+for (i in 1:256) {
+  for (j in 1:256) {
+    if ( abs(i-128) < 30 && abs(j-128) < 30) 
+      square_arr[i,j]=1 # sqrt((i-128)^2+(j-128)^2)/30
+    else square_arr[i,j]=0
+    if ( sqrt((i-128)^2 + (j-128)^2)<30) 
+      circle_arr[i,j]=1 # 1-sqrt((i-128)^2+(j-128)^2)/30
+    else circle_arr[i,j]=0
+  }
+}
+# image(square_arr); image(circle_arr)
+#display(square_arr, method = "raster"); display(circle_arr, method = "raster")
+
+#download.file("http://wiki.socr.umich.edu/images/e/ea/BrainCortex2.png",
+#              paste(getwd(),"./image.png", sep="/"), mode = 'wb')	
+#im <- load.image(paste(getwd(),"./image.png", sep="/"))	
+# plot(im)	
+# Grayscaled
+# img_gray <- im[ , , 1]
+# display(img_gray, title='Image')
+
+
+# FFT
+# img_ff <- fft(img_gray) #fftw2d
+ft_square <- fft(square_arr) #fftw2d # Display Re(FT): display(fftshift(ft_square))
+ft_circle <- fft(circle_arr)  # display(fftshift(ft_circle))
+
+# Magnitude and Phase
+mag_ft_square <- sqrt(Re(ft_square)^2+Im(ft_square)^2)
+mag_ft_circle <- sqrt(Re(ft_circle)^2+Im(ft_circle)^2)
+
+# Phase  <- atan(Im(img_ff)/Re(img_ff))
+phase_ft_square  <- atan2(Im(ft_square), Re(ft_square))
+phase_ft_circle  <- atan2(Im(ft_circle), Re(ft_circle))
+
+# FFT SHIFT
+shift_ft_square <- fftshift(mag_ft_square)
+shift_ft_circle <- fftshift(mag_ft_circle)
+
+# Display FT
+display(log(shift_ft_square),title="FT Magnitude")
+display(log(shift_ft_circle),title="FT Phase")
+
+
+# Magnitude and Phase
+mag_shift_ft_square <- sqrt(Re(shift_ft_square)^2+Im(shift_ft_square)^2)
+# phase  <- atan(Im(img_ff)/Re(img_ff))
+phase_ft_square  <- atan2(Im(ft_square), Re(ft_square))
+display(fftshift(phase_ft_square))
+
+phase_ft_circle  <- atan2(Im(ft_circle), Re(ft_circle))
+display(fftshift(phase_ft_circle))
+
+# ImplicitlyInvert the FT (IFT)
+fftinv <- function( x ) { fft( x, inverse=TRUE ) / length( x ) }
+display(Re(fftinv(fft(square_arr))),title="(IFT o FT) Magnitude")
+display(Re(fftinv(fft(circle_arr))),title="(IFT o FT) Magnitude")
+
+# FT of Square  # Display the FT with a shift or not: display(fftshift(Re(X1))
+X1 = fft(square_arr); display(fftshift(Re(X1)), method = "raster")
+X1_mag <- sqrt(Re(X1)^2+Im(X1)^2); display(fftshift(X1_mag), method = "raster") # magnitude only
+X1_phase  <- atan2(Im(X1), Re(X1)); display(fftshift(X1_phase), method = "raster") # phase only
+
+##  Implicit Automated IFT
+hat_X1 = Re(fft(X1, inverse = T)/length(square_arr))
+display(hat_X1, method = "raster")  
+
+## Manually invert the FT (IFT) using the magnitudes and phases
+Real1 = X1_mag * cos(X1_phase)
+Imaginary1 = X1_mag * sin(X1_phase)
+man_hat_X1 = Re(fft(Real1+1i*Imaginary1, inverse = T)/length(X1))
+display(man_hat_X1, method = "raster")  
+
+# FT of Circle # No shift applied here (perhaps should be consistent or just show the difference?)
+X2 = fft(circle_arr)
+display(Re(X2), method = "raster")
+
+X2_mag <- sqrt(Re(X2)^2+Im(X2)^2)
+display(X2_mag, method = "raster") # magnitude only
+
+X2_phase  <- atan2(Im(X2), Re(X2))
+display(X2_phase, method = "raster") # phase only
+
+##  Implicit Automated IFT
+# hat_X2 = Re(fft(X2, inverse = T)/length(circle_arr)); display(hat_X2, method = "raster") 
+## Manually invert the FT (IFT) using the magnitudes and phases
+Real2 = X2_mag * cos(X2_phase)
+Imaginary2 = X2_mag * sin(X2_phase)
+man_hat_X2 = Re(fft(Real2+1i*Imaginary2, inverse = T)/length(X1))
+display(man_hat_X2, method = "raster")  
+
+# IFT Square-Magnitude and Circle-Phase
+Real = X1_mag * cos(X2_phase)
+Imaginary = X1_mag * sin(X2_phase)
+ift_X1mag_X2phase = Re(fft(Real+1i*Imaginary, inverse = T)/length(X1))
+display(ift_X1mag_X2phase, method = "raster")
+
+# IFT Circle-Magnitude and Square-Phase
+Real = X2_mag * cos(X1_phase)
+Imaginary = X2_mag * sin(X1_phase)
+ift_X1phase_X2mag = Re(fft(Real+1i*Imaginary, inverse = T)/length(X1))
+display(ift_X1phase_X2mag, method = "raster")
+
+# IFT Circle-Magnitude and Nil-Phase
+Real = X2_mag * cos(0)
+Imaginary = X2_mag * sin(0)
+ift_NilPhase_X2mag = Re(ifftshift(fft(Real+1i*Imaginary, inverse = T)/length(X2)))
+display(ift_NilPhase_X2mag, method = "raster")
+
+# IFT Square-Magnitude and Nil-Phase
+Real = X1_mag * cos(0)
+Imaginary = X1_mag * sin(0)
+ift_NilPhase_X1mag = Re(ifftshift(fft(Real+1i*Imaginary, inverse = T)/length(X1)))
+display(ift_NilPhase_X1mag, method = "raster")
+```
+
+
+# Appendix: Functions Used
+
+## fftshift()
+
+```{r}
+# FFT SHIFT
+#' This function is useful for visualizing the Fourier transform with the zero-frequency 
+#' component in the middle of the spectrum.
+#' 
+#' @param img_ff A Fourier transform of a 1D signal, 2D image, or 3D volume.
+#' @param dim Number of dimensions (-1, 1, 2, 3).
+#' @return A properly shifted FT of the array.
+#' 
+fftshift <- function(img_ff, dim = -1) {
+
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]
+  # planes <- dim(img_ff)[3]
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- ceiling(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- ceiling(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+  
+  #swap_side2side <- function(img_ff) {
+  #  planes_half <- ceiling(planes/2)
+  #  return(cbind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], img_ff[1:rows, 1:cols, 1:planes_half]))
+  #}
+
+  if (dim == -1) {
+    img_ff <- swap_up_down(img_ff)
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- ceiling(rows/2)
+    cols_half <- ceiling(cols/2)
+    planes_half <- ceiling(planes/2)
+    
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+```
+
+## ifftshift()
+
+```{r}
+# IFFT SHIFT
+#' This function is useful for moving back the zero-frequency component in the middle of the spectrum
+#' back to (0,0,0).  It rearranges in reverse (relative to fftshift()) the indices appropriately,
+#' so that the image can be correctly reconstructed by the IFT in spacetime
+#' 
+#' @param img_ff An Inverse Fourier transform of a 1D signal, 2D image, or 3D volume.
+#' @param dim Number of dimensions (-1, 1, 2, 3).
+#' @return A properly shifted IFT of the input array.
+#' 
+ifftshift <- function(img_ff, dim = -1) {
+
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]    
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- floor(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- floor(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+
+  if (dim == -1) {
+    img_ff <- swap_left_right(img_ff)
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- floor(rows/2)
+    cols_half <- floor(cols/2)
+    planes_half <- floor(planes/2)
+    
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+```
+
+## fftinv()
+
+```{r}
+# Implicitly Invert the FT (IFT)
+#' This function does the IFT and scales appropriately the  result to ensure IFT(FT()) = I()
+#' 
+#' @param x FT of a dataset.
+#' @return The IFT of the input array.
+#'
+fftinv <- function( x ) { 
+  fft( x, inverse=TRUE ) / length( x ) 
+  }
+```
+
+
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->

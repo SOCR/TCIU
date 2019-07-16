@@ -1,0 +1,1668 @@
+---
+title: "Fig5.15_to_17"
+subtitle: "[Back To Chapter 5.5](Chap_5.5.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 5
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=F, warning=F}
+library(dplyr)
+library(arm)
+library(tidyr)
+library(ggplot2)
+library(ggrepel)
+library(plot3D)
+library(scatterplot3d)
+library(plotly)
+library(fastDummies)
+library(forecast)
+library(glmnet)
+library(knitr)
+library(doParallel)
+library(ggrepel)
+library(roxygen2)
+library(devtools)
+library(DT)
+library(parallel)
+
+registerDoParallel(10,cores = detectCores()-2)
+```
+
+Read the Rdata file
+```{r}
+load("./Rdata/Fig5.15_to_17.RData")
+```
+
+Put in all functions
+
+```{r,echo=FALSE}
+#' Impute missing values inside a dataset
+#'
+#' This function is a preliminary way of dealing with NA inside the dataset. This function fills the NA's with column mean and sd
+#'@param mat matrix with missing value(NA) inside
+cleardata <- function(mat){
+  mat = 
+    apply(mat, 2, function(column) 
+      sapply(column, function(x) 
+        ifelse(is.na(x),
+               mean(column,na.rm = T) + 
+                 rnorm( sum(is.na(column) ), sd = sd(column, na.rm = T) ),
+               x) ) )
+  return(mat)
+}
+
+#'use spline regression model to expand the dataset
+#'
+#'This function is mainly focused on time series dataset. Especially in this case, we apply spline regression model to expand the time series data from seasonal period to monthly, even weekly period. Notice that the length.out parameter in this function is fixed to 360, which will expand the time series to a weekly period. But we can change this parameter to get the time period that we desire.
+#'@param mat matrix which contains a time series data. In this function we desire a time series data which has a seasonal period time data.
+splinecreate <- function(mat){
+  res<-NULL
+  for (i in 1:ncol(mat)) {
+    sp<-smooth.spline(seq(1:72),mat[,i])
+    spresult<-predict(sp,seq(from=0,by=1/5,length.out = 360))
+    spfeat<-spresult$y+rnorm(360,sd=sd(mat[,i]))
+    res<-cbind(res,spfeat)
+  }
+  colnames(res)<-colnames(mat)
+  return(res)
+}
+
+#'Remove features with all missing values
+#'
+#' This function deletes features that are missing for all time points 
+#' associated with a certain country
+#'@param countryName give a country name that is shown on the original dataset
+rmv_miss_ftr = function(countryName = "Bulgaria"){
+  DataSuperSample = 
+    time_series %>% 
+    filter(country == countryName) %>%
+    select_if( function(col) sum(is.na(col)) != length(col) ) %>%
+    select(-time, -country) %>%
+    as.matrix() %>%
+    cleardata() %>%
+    as.data.frame()%>%
+    # remove feature that only has one value
+    select_if(function(col) sum(is.na(col)) == 0 ) %>%
+    # remove feature that all the values are 0
+    select_if(function(col) sum(col) != 0 ) %>%
+    splinecreate() %>%
+    as.data.frame()
+  return(DataSuperSample)
+}
+
+##Concern: The name of country "German" has changed inside the dataset once.
+
+#'Clean and fit ARIMA model
+#'
+#' This function cleans the data and fits the ARIMA model
+#'@param country Give a country name that is shown on the original dataset
+#'@param start Select the start year to create the ARIMA model
+#'@param end Select the end year to create the ARIMA model
+#'@param frequency The number of observations per unit of time. The same in function "ts"
+#'@param feature Choose one feature to create the ARIMA model on
+Fit_ARIMA <- function(country = 'Belgium', 
+                      start = 2000, end = 2017, frequency = 20,
+                      feature="Unemployment , Females, From 15-64 years, Total")
+{
+  # delete features that are missing for all time points
+  DataSuperSample = rmv_miss_ftr(countryName = country)
+  if (feature=="Unemployment , Females, From 15-64 years, Total") {
+      Y = select(DataSuperSample, "Unemployment , Females, From 15-64 years, Total")
+      X = select(DataSuperSample, -starts_with("Unemployment"))
+  } else if (feature=="Gross domestic product at market prices") {
+    Y = select(DataSuperSample, "Gross domestic product at market prices"); dim(Y)
+    X = select(DataSuperSample, -matches("debt|Debt")); dim(X)  # 360 167
+    print(paste0("dim(X)=(", dim(X)[1], ",", dim(X)[2], ");  ",
+                 " dim(Y)=(", dim(Y)[1], ",", dim(Y)[2], ") ..."))
+    # ensure full-rank design matrix, X
+    X <- X[, qr(X)$pivot[seq_len(qr(X)$rank)]]; dim(X)  
+  }
+  else {
+    print(paste0("This feature ", feature, " is not imlemented yet! Exiting Fit_ARIMA() method ...")) 
+    return(NULL)
+  }
+  ts_Y <- ts(Y, start=c(start, 1), end=c(end, frequency), 
+             frequency = frequency); length(ts_Y)
+  set.seed(1234)
+  fitArimaX = auto.arima(ts_Y, xreg=as.matrix(X) )
+  return(fitArimaX)
+}
+
+#'Preprocess dataset of given countries to ensure full rank
+#'
+#'Extend the Fit-ARIMA method to ensure testing-training 
+#'modeling/assessment for 2 countries works
+#'
+#'@param country Give a country name that is shown on the original dataset
+#'@param start Select the start year to create the ARIMA model
+#'@param end Select the end year to create the ARIMA model
+#'@param frequency The number of observations per unit of time. The same in function "ts"
+#'@param feature Choose one feature to create the ARIMA model on
+preprocess_ARIMA <- 
+  function(country='Belgium',start=2000, end=2017, frequency=20,
+           feature="Unemployment , Females, From 15-64 years, Total")
+{
+  # delete features that are missing for all time points
+  DataSuperSample = rmv_miss_ftr(countryName = country)
+
+  print(paste0("Processing feature: ...", feature, "... "))
+      
+  if (feature == "Unemployment , Females, From 15-64 years, Total") {
+      Y = select(DataSuperSample, 
+                 "Unemployment , Females, From 15-64 years, Total")
+      X = select(DataSuperSample, 
+                 -starts_with("Unemployment"))
+  } else if (feature == "Gross domestic product at market prices") {
+      Y = select(DataSuperSample, 
+                 "Gross domestic product at market prices"); dim(Y)
+      X = select(DataSuperSample, 
+                 -matches("debt|Debt") )
+      X <- X [, -c(50:80)]; dim(X)  # 360 167
+  } else {
+    print(paste0("This feature: ...", 
+                 feature, 
+                 "... is not imlemented yet! Exiting preprocess_ARIMA() method ...")) 
+    return(NULL)
+  }
+  
+  # reduce the number of observations (matrix rows) to specified timerange
+  len_1 <- (end + 1 - start) * frequency; print(paste0("dim(X)[1]=", len_1))
+  X <- X[1:len_1 , qr(X[1:len_1 , ])$pivot[seq_len(qr(X[1:len_1 , ])$rank)]]; dim(X)  
+  # ensure full-rank design matrix, X
+  Y <- as.data.frame(Y[1:len_1 , ])
+  print(paste0("dim(X)=(", dim(X)[1], ",", dim(X)[2], ");  ",         # 300 136
+                 " dim(Y)=(", dim(Y)[1], ",", dim(Y)[2], ") ..."))    # 300 1
+  return( list("X"=X, "Y"=Y) )
+}
+
+#' General function that ensures the XReg predictors for 2 countries are homologous
+#'
+#'@param X_Country1 value inhereted from previous function "preprocess_ARIMA"
+#'@param X_Country2 value inhereted from previous function "preprocess_ARIMA"
+homologousX_features <- function (X_Country1, X_Country2){
+  # Check if Xreg for Belgium and Bulgaria are homologous (same feature columns)
+  common_cols <- intersect(colnames(X_Country1), colnames(X_Country2))
+  X_Country1 <- subset(X_Country1, select = common_cols)
+  X_Country2 <- subset(X_Country2, select = common_cols)
+  print(paste0("dim(X1)=(", dim(X_Country1)[1], ",", dim(X_Country1)[2], ");  ", # 300 131
+              " dim(X2)=(", dim(X_Country2)[1], ",", dim(X_Country2)[2], ")!"))  # 300 131
+  return(list("X_Country1"=X_Country1, "X_Country2"=X_Country2))
+}
+
+#'Set up ARIMAX model with homologous features
+#'
+#'This function is based on two previous functions "preprocess_ARIMA" and "homologousX_features". It gets the homologous features between two countries and create ARIMAX model on them.
+#'
+#'@param country1 Give a country name that is shown on the original dataset, ARIMAX model will be created based on the data of this country
+#'@param country2 Give a country name that is shown on the original dataset, this country data will only be used to get the homologous features with country 1
+#'@param start Select the start year to create the ARIMA model
+#'@param end Select the end year to create the ARIMA model
+#'@param frequency The number of observations per unit of time. The same in function "ts"
+#'@param feature Choose one feature to create the ARIMA model on
+fit_ARIMA <- 
+  function(country1='Belgium', country2= 'Bulgaria', 
+           start=2000, end=2014, frequency=20,
+           feature="Gross domestic product at market prices"){
+  # This function 
+  preprocess_Country1 <- preprocess_ARIMA(country = country1, 
+                    start=start, end=end, frequency=frequency, feature=feature)
+  preprocess_Country2 <- preprocess_ARIMA(country = country2, 
+                    start=start, end=end, frequency=frequency, feature=feature)
+  ts_Y_Country1 <- ts(preprocess_Country1$Y, start=c(start, 1), 
+            end=c(end, frequency), frequency = frequency); length(ts_Y_Country1)
+  
+  homoFeat <- homologousX_features(preprocess_Country1$X, preprocess_Country2$X)
+  X_Country1  <- homoFeat$X_Country1
+  X_Country2 <- homoFeat$X_Country2
+  
+  set.seed(1234)
+  fitArimaX_Country1 = auto.arima(ts_Y_Country1, xreg=as.matrix(X_Country1))
+  return(fitArimaX_Country1)
+}
+
+#'1D timeseries FFT SHIFT
+fftshift1D <- function(img_ff) {
+  rows <- length(img_ff)   
+  rows_half <- ceiling(rows/2)
+  return(append(img_ff[(rows_half+1):rows], img_ff[1:rows_half]))
+}
+##This function isn't really being used in our report
+
+#'K-space transformation
+#'
+#' Generic function to Transform Data ={all predictors (X) and outcome (Y)} to k-space (Fourier domain)
+#' For ForwardFT, set parameters as (rawData, FALSE, NULL)
+#' For InverseFT, there are two parameters setting: (magnitudes, TRUE, reconPhasesToUse) or (FT_data, TRUE, NULL)
+#' @param data dataset that needs K-space transformation
+kSpaceTransform <- function(data, inverse = FALSE, reconPhases = NULL) {
+  # ForwardFT (rawData, FALSE, NULL)
+  # InverseFT(magnitudes, TRUE, reconPhasesToUse) or InverseFT(FT_data, TRUE, NULL)
+  FT_data <- array(complex(), c(dim(data)[1], dim(data)[2]))
+  mag_FT_data <- array(complex(), c(dim(data)[1], dim(data)[2]))
+  phase_FT_data <- array(complex(), c(dim(data)[1], dim(data)[2]))
+  IFT_reconPhases_data <- array(complex(), c(dim(data)[1], dim(data)[2]))
+
+  for (i in 1:dim(data)[2]) {
+    if (inverse == FALSE | is.null(reconPhases)) {
+      FT_data[ , i] <- fft(data[ , i], inverse)
+      X2 <- FT_data[ , i]
+      # plot(fftshift1D(log(Re(X2)+2)), main = "log(fftshift1D(Re(FFT(timeseries))))") 
+      mag_FT_data[ , i] <- sqrt(Re(X2)^2+Im(X2)^2); 
+      # plot(log(fftshift1D(Re(mag_FT_MCSI_data))), main = "log(Magnitude(FFT(timeseries)))") 
+      phase_FT_data[ , i] <- atan2(Im(X2), Re(X2)); 
+      # plot(Re(fftshift1D(phase_FT_MCSI_data[ , 1])), main = "Shift(Phase(FFT(timeseries)))")
+    }
+    else {  # for IFT synthesis using user-provided Phases, typically from kime-phase aggregators
+      Real <- data[ , i] * cos(reconPhases[ , i])  
+      Imaginary <- data[ , i] * sin(reconPhases[ , i]) 
+      IFT_reconPhases_data[ ,i] <- 
+          Re(fft(Real+1i*Imaginary, inverse = TRUE)/length(data[ , i]))
+    }
+  }
+    ######### Test the FT-IFT analysis-synthesis back-and-forth transform process 
+    #         to confirm calculations
+    # X2 <- FT_data[ , 1]; mag_FT_data[ , 1] <- sqrt(Re(X2)^2+Im(X2)^2); 
+    # phase_FT_data[ , 1] <- atan2(Im(X2), Re(X2)); 
+    # Real2 = mag_FT_data[ , 1] * cos(phase_FT_data[ , 1])
+    # Imaginary2 = mag_FT_data[ , 1] * sin(phase_FT_data[ , 1])
+    # man_hat_X2 = Re(fft(Real2 + 1i*Imaginary2, inverse = T)/length(X2))
+    # ifelse(abs(man_hat_X2[5] - data[5, 1]) < 0.001, "Perfect Syntesis", "Problems!!!")
+    #########
+  
+    if (inverse == FALSE | is.null(reconPhases)) {
+      return(list("magnitudes"=mag_FT_data, "phases"=phase_FT_data))
+      # Use kSpaceTransform$magnitudes & kSpaceTransform$phases to retrieve teh Mags and Phases
+    }
+    else {
+      return(IFT_reconPhases_data)
+      # Use Re(kSpaceTransform) to extract spacetime Real-valued reconstructed data
+    }
+}
+```
+
+3. Reshape the title to fit the space of plot
+```{r}
+#' Reshape the title
+#'
+#' @param titl vector contains titles that need to be reshaped
+changetitle <- function(titl) {
+  newtitle<-rep(NA,length(titl))
+  for (i in 1:length(titl)) {
+    tempchar<-substring(titl[i],1:nchar(titl[i]),1:nchar(titl[i]))
+    for (j in 1:8) {
+      k=25*j
+      tempchar[which(tempchar==" ")[which(tempchar==" ")>k][1]]<-"\n"
+    }
+    tempchar<-paste(tempchar,collapse = "")
+    newtitle[i]<-tempchar
+  }
+  return(newtitle)
+}
+
+#' Creating plot result for K-space transformation
+#'
+#' This function can choose to generate all plots related to the K-space transformation. Or we could choose features code to select features we like to see to generate K-space transformation result.
+#'
+#'@param dataFT data inherited from function "kSpaceTransform", K-space transformed dataset.
+#'@param dataColnames feature names for the transformed dataset
+#'@param size size of the text inside the plot
+#'@param option two options avaliable: "All": to plot for all features, "Select": to select several features you wish to show 
+#'@param select_feature if "option" is setted as "Select", then put inside a sequence to indicate the features you wish to show with this function.
+plotPhaseDistributions <- function (dataFT, dataColnames, size=10, option="ALL",select_feature=NULL,...) {
+  df.phase <- as.data.frame(Re(dataFT$phases))
+  df.phase %>% gather() %>% head()
+  colnames(df.phase) <- dataColnames
+  phaseDistributions <- gather(df.phase)
+  colnames(phaseDistributions) <- c("Feature", "Phase")
+  if (is.null(size)) size=10
+  
+  # map the value as our x variable, and use facet_wrap to separate by the key column:
+  if(option=="ALL"){
+  ggplot(phaseDistributions, aes(Phase)) + 
+    # geom_histogram(bins = 10) + 
+    geom_histogram(aes(y=..density..), bins = 10) + 
+    facet_wrap( ~Feature, scales = 'free_x') +
+    xlim(-pi, pi) + 
+    theme(strip.text.x = element_text(size = size, colour = "black", angle = 0))}
+  else if(option=="Select"){
+    choosefeat<-dataColnames[select_feature]
+    NphaseDistributions<-phaseDistributions[which(phaseDistributions$Feature %in% choosefeat),]
+  ggplot(NphaseDistributions, aes(Phase)) + 
+    # geom_histogram(bins = 10) + 
+    geom_histogram(aes(y=..density..), bins = 10) + 
+    facet_wrap( ~Feature, scales = 'free_x') +
+    xlim(-pi, pi) + 
+    theme(strip.text.x = element_text(size = size, colour = "black", angle = 0))}
+  else{
+    return("Wrong input on option, Please try again")
+  }
+}
+
+#'Conduct three different phase synthesis methods and create ARIMAX model based on different method.
+#'
+#'This function can reconstruct the dataset based on three phase synthesis methods: Nil-Phase Synthesis, Swapped-Phase Synthesis and Random-Phase Synthesis. Also it can construct different ARIMAX model based on the phase synthesis method chosen. 
+#'
+#'@param X inherited from function "homologousX_features", we can get parameter X by "homologousX_features(country1,country2)$$X_Country1"
+#'@param Y inherited from function "preprocess_ARIMA", we can get parameter Y by "preprocess_ARIMA$Y"
+#'@param ts_Y_test time series vector, must be set from function "ts" and must be created based on testing set
+#'@param option choose the phase synthesis method used in the reconstruction or ARIMAX model. Three options are valid: "Nil-Phase", "Swapped-Phase", "Random-Phase"
+#'@param result choose the result shown by this function. Two options are valid: "ARIMAX": this will show the ARIMAX model created by the chosen phase synthesis method. "reconstruct": this will show the reconstruction procedure based on the chosen phase synthesis method, but the ARIMAX model won't be built.
+#'@param rename_Y rename the return result of Y
+#'
+#'@return if the "result" parameter is setted as "reconstruct", then the reconstruction result will be shown. if setted as "ARIMAX", then the detailed ARIMAX model will be built.
+
+PS_ARIMAX_remodel <- function(X,Y,ts_Y_test,option="Nil-Phase",result="ARIMAX",rename_Y="Y_GDP_Belgium") {
+  temp_data<-cbind(X,Y)
+  FT<-kSpaceTransform(temp_data, FALSE, NULL)
+  if(option=="Nil-Phase"){
+    nilPhase_FT_data <- array(complex(real=0, imaginary=0), c(dim(temp_data)[1], dim(temp_data)[2]))
+    ##IFT_NilPhase_FT <- array(complex(), c(dim(temp_data)[1], dim(temp_data)[2]))
+    #       Invert back to spacetime the FT_Belgium$magnitudes[ , i] signal with nil-phase
+    IFT_NilPhase_FT<- Re(kSpaceTransform(FT$magnitudes, TRUE, nilPhase_FT_data))
+    colnames(IFT_NilPhase_FT) <- c(colnames(X), rename_Y)
+
+    #result
+    if(result=="reconstruct"){
+      return(list(
+    dim(nilPhase_FT_data),dim(IFT_NilPhase_FT), dim(FT$magnitudes),
+    colnames(IFT_NilPhase_FT), head(IFT_NilPhase_FT),IFT_NilPhase_FT)) # head(temp_Data)
+    }
+    #rename
+    IFT_FT<-IFT_NilPhase_FT
+  }
+  else if(option=="Swapped-Phase"){
+    
+    swapped_phase_FT_data <- FT$phases
+    colnames(swapped_phase_FT_data) <- c(colnames(X), rename_Y)
+    swapped_phase_FT_data1 <- swapped_phase_FT_data
+    IFT_SwappedPhase_FT <- array(complex(), c(dim(temp_data)[1], dim(temp_data)[2]))
+    set.seed(12345)   # sample randomly Phase-columns for each of the 131 covariates (X)
+    #swap_phase_FT_Belgium_indices <- sample(ncol(swapped_phase_FT_Belgium_data)-1)
+    # for (j in 1:131) {  # for all coluns of the design Xreg matrix, excluding Y, randomly swap columns phases
+    #  swapped_phase_FT_Belgium_data1[ , j] <- swapped_phase_FT_Belgium_data[, swap_phase_FT_Belgium_indices[j]]
+    #}
+    swapped_phase_FT_data1 <- as.data.frame(cbind(
+      swapped_phase_FT_data[ , sample(ncol(swapped_phase_FT_data[ , 1:(ncol(swapped_phase_FT_data)-1)]))], 
+      swapped_phase_FT_data[ , ncol(swapped_phase_FT_data)]))
+    swapped_phase_FT_data <- swapped_phase_FT_data1
+    colnames(swapped_phase_FT_data)[ncol(swapped_phase_FT_data)] <- rename_Y
+    colnames(swapped_phase_FT_data)
+    
+    # Invert back to spacetime the FT_Belgium$magnitudes[ , i] signal using the feature swapped phases
+    IFT_SwappedPhase_FT <- Re(kSpaceTransform(FT$magnitudes, TRUE, swapped_phase_FT_data))
+    
+    colnames(IFT_SwappedPhase_FT) <- c(colnames(X), rename_Y)
+
+    #result
+    if(result=="reconstruct"){
+      return(list(
+    dim(swapped_phase_FT_data) ,
+    # [1] 360 132
+    dim(swapped_phase_FT_data), dim(FT$phases),
+    dim(IFT_SwappedPhase_FT), dim(FT$magnitudes),
+    colnames(IFT_SwappedPhase_FT), tail(IFT_SwappedPhase_FT),IFT_SwappedPhase_FT)) # tail(temp_Data)
+    }
+    #rename
+    IFT_FT<-IFT_SwappedPhase_FT
+  }
+  else if(option=="Random-Phase"){
+    
+    #randPhase_FT_data <- array(complex(), c(dim(temp_data)[1], dim(temp_data)[2]))
+    IFT_RandPhase_FT <- array(complex(), c(dim(temp_data)[1], dim(temp_data)[2]))
+    randPhase_FT_data <- FT$phases
+    for (i in 1:(dim(randPhase_FT_data)[2] -1)) {
+      if (i < dim(randPhase_FT_data)[2]) {
+        set.seed(12345)   # sample randomly Phases for each of the 131 predictors covariates (X)
+        randPhase_FT_data[ , i] <- FT$phases[sample(nrow(FT$phases)), i]
+      } else {   } # for the Y outcome (Last Column) - do not change the phases of the Y
+    }
+    #       Invert back to spacetime the FT_Belgium$magnitudes[ , i] signal with avg-phase
+    IFT_RandPhase_FT <- Re(kSpaceTransform(FT$magnitudes, TRUE, randPhase_FT_data))
+    colnames(IFT_RandPhase_FT) <- c(colnames(X), rename_Y)
+    
+    #result
+    if(result=="reconstruct"){
+    return(  list(
+    dim(randPhase_FT_data),    # ;  head(randPhase_FT_data)
+    # [1] 360 132
+    dim(IFT_RandPhase_FT), dim(FT$magnitudes) ,
+    colnames(IFT_RandPhase_FT), tail(IFT_RandPhase_FT), # tail(temp_Data)
+    dim(IFT_RandPhase_FT), head(Re(IFT_RandPhase_FT)), tail(Re(IFT_RandPhase_FT))))
+    }
+    #rename
+    IFT_FT<-IFT_RandPhase_FT
+  }
+  if(result=="ARIMAX"){
+  #construction of time-series analysis
+  # Perform ARIMAX modeling on IFT_NilPhase_FT_Belgium; report (p,d,q) params and quality metrics AIC/BIC
+  # library(forecast)
+  IFT_FT_Y_train <- IFT_FT[1:300, ncol(IFT_FT)]
+  IFT_FT_Y_test <- IFT_FT[301:360]
+  
+  # Training and Testing Data Covariates explaining the longitudinal outcome (Y)
+  IFT_FT_X_train <- as.data.frame(IFT_FT)[1:300, 1:(ncol(IFT_FT)-1)]; dim(IFT_FT_X_train)
+  IFT_FT_X_test <- as.data.frame(IFT_FT)[301:360, 1:(ncol(IFT_FT)-1)]; dim(IFT_FT_X_test)
+  
+  # Outcome Variable to be ARIMAX-modelled, as a timeseries
+  ts_IFT_FT_Y_train <- 
+    ts(IFT_FT_Y_train, start=c(2000,1), end=c(2014, 20), frequency = 20)
+  
+  set.seed(1234)
+  modArima_IFT_FT_Y_train <- 
+    auto.arima(ts_IFT_FT_Y_train, xreg=as.matrix(IFT_FT_X_train))
+
+  pred_arimax <- forecast(modArima_IFT_FT_Y_train, xreg = as.matrix(IFT_FT_X_test))
+  pred_arimax_2015_2017 <- 
+    ts(pred_arimax$mean, frequency=20, start=c(2015,1), end=c(2017,20))
+  # alternatively:
+  # pred_arimax_1_0_1_2015_2017 <- predict(modArima_IFT_NilPhase_FT_Belgium_Y_train, 
+  #                                              n.ahead = 3*20, newxreg = IFT_NilPhase_FT_Belgium_X_test)$pred
+  sort(modArima_IFT_FT_Y_train$coef)[1:10]
+  # Labor cost for LCI (compensation of employees plus taxes minus subsidies), effect=-1.5972295 
+  #                                                                      ar1, effect=-1.4231617 
+  #                                 Labor cost other than wages and salaries, effect=-1.2213214 
+  #                                                                      ma1, effect=-0.9869571 
+  #                                                                      ar2, effect=-0.8591937 
+  #           Unemployment , Females, From 15-64 years, From 12 to 17 months, effect=-0.7075454 
+  #             Unemployment , Total, From 15-64 years, From 18 to 23 months, effect=-0.5797656 
+  #               Unemployment , Males, From 15-64 years, from 3 to 5 months, effect=-0.5026139 
+  #                                                                     sar2, effect=-0.3450866 
+  #             Unemployment , Males, From 15-64 years, from 24 to 47 months, effect=-0.2965540 
+  return(list(
+  training_set_length=length(IFT_FT_Y_train),
+  testing_set_length=length(IFT_FT_Y_test),
+  AR_MA=modArima_IFT_FT_Y_train$arma,
+  ARIMAX_model=pred_arimax_2015_2017,
+  feature_effect=sort(modArima_IFT_FT_Y_train$coef)[1:10],
+  Correlation=cor(pred_arimax$mean, ts_Y_test), 
+  Mean=mean(pred_arimax_2015_2017)))} 
+  else{
+    print(paste0("Wrong input for option or result, please try again.") )
+    return(NULL)
+  }
+}
+```
+
+# Fit the ARIMA model for each country
+
+## Belgium 
+
+Extract data for Belgium.
+
+```{r, eval = TRUE}
+# Choose Belgium and fit the arima
+belgium =
+  time_series %>%
+  filter(country == "Belgium") %>%
+  # delete the feature that is missing for all the time
+  select_if(function(col) sum(is.na(col)) != length(col) ) %>%
+  select(-time,-country)
+```
+
+The dimension of dataset related to Belgium are `r dim(belgium)`.
+
+Manually clean (preprocess) the Belgium data and fit ARIMAX model 
+$$Y = BelguimSuperSample\$'Unemployment,\ Females,\ From\ 15-64\ years,\ Total',$$
+
+$$X = XReg\ (all\ other\ covariates\ -starts\_with('Unemployment')).$$
+
+```{r, eval = TRUE}
+# Reformate the belgium matrix
+BelguimSuperSample <-
+  belgium %>% 
+  as.matrix() %>% 
+  cleardata() %>%
+  splinecreate() %>% 
+  as.data.frame()
+
+#############################
+# Outcome Features to examine, predict, forecast, spacekime-analyze
+#   "Gross domestic product at market prices"
+#   "Unemployment , Females, From 15-64 years, Total"
+#   "Capital transfers, payable"       
+#   "Capital transfers, receivable"
+#   "Debt securities"
+#   "Government consolidated gross debt"
+#   ... View(colnames(BelguimMatrix))
+############################# 
+```
+
+feature: "Unemployment , Females, From 15-64 years, Total"
+```{r}
+################################################
+#    "Unemployment , Females, From 15-64 years, Total"
+Y = select(BelguimSuperSample, "Unemployment , Females, From 15-64 years, Total")
+X = select(BelguimSuperSample, -starts_with("Unemployment"))
+X = as.matrix(X)
+fitArimaX = auto.arima(Y, xreg=X[,-112])
+```
+dimension of this feature: Y: `r dim(Y)`, X:`r dim(X)`  
+ARIMAX model AR and MA coefficients: `r fitArimaX$arma` 
+
+```{r}
+################################################
+#    "Government consolidated gross debt"
+#Y = select(BelguimSuperSample, "Government consolidated gross debt"); dim(Y)
+#X = select(BelguimSuperSample, -matches("debt|Debt")); dim(X)
+# X_scale <- scale(X); Matrix::rankMatrix(X_scale); any(is.na(X_scale)); any(is.infinite(X_scale))
+#     remove columns with infinite or missing value  
+# X_scale_1 <- X_scale[ , !is.infinite(colSums(X_scale)) & !is.na(colSums(X_scale))]
+#X_1 <- X[ , !is.infinite(colSums(X)) & !is.na(colSums(X))]; dim(X_1); Matrix::rankMatrix(X_1)
+#X_2 <- X_1[, qr(X_1)$pivot[seq_len(qr(X_1)$rank)]]; dim(X_2)
+# 
+#fitArimaX = auto.arima(Y, xreg=X_2, method = "CSS", # "SANN", method = "CSS", optim.method = "BFGS"
+#          optim.control=list(maxit = 20000, temp = 20), optim.method = "BFGS")
+#fitArimaX; View(sort(fitArimaX$coef)[1:10]); fitArimaX$arma
+
+################################################
+#   "Gross domestic product at market prices"
+Y = select(BelguimSuperSample, "Gross domestic product at market prices")
+X = select(BelguimSuperSample, -matches("debt|Debt"))  # 360 167
+X <- X[, qr(X)$pivot[seq_len(qr(X)$rank)]]
+X = as.matrix(X)
+ts_Y <- ts(Y, start=c(2000,1), end=c(2017, 20), frequency = 20); length(ts_Y)
+set.seed(1234)
+fitArimaX = auto.arima(ts_Y, xreg=X[ , -c(50:60)])
+# 5  0  2  0 20  0  0
+# sigma^2 estimated as 57.04:  log likelihood=-1132.78 AIC=2593.55   AICc=2871.09   BIC=3230.88
+```
+dimension of this feature: Y: `r dim(Y)`, X:`r dim(X)`
+ARIMAX model AR and MA coefficients: `r fitArimaX$arma`
+
+```{r, fig.width = 14, fig.height = 10, out.width = "1920", out.height = "1080"}
+pred_arimaX_5_0_2_Y_Belgium_train300_Belgium_test60 <- 
+  predict(fitArimaX, n.ahead = 60, newxreg = X[301:360 , -c(50:60)])$pred
+```
+
+```{r, fig.width = 14, fig.height = 10, out.width = "1920", out.height = "1080"}
+#Output here:
+
+plot(forecast(fitArimaX, xreg = X[301:360 , -c(50:60)]),        # ARIMA forecast
+     include=120, lwd=4, lty=3, xlab="Time", ylab="GDP", ylim=c(50, 150),
+     main = "ARIMAX Analytics (Train: 2000-2017; Test: 2018-2020) GDP Forecasting\n
+      based on fitting ARIMAX Models on raw (spline interpolated) Belgium data")
+
+lines(pred_arimaX_5_0_2_Y_Belgium_train300_Belgium_test60, col = "red", lwd = 4, lty=3)
+
+legend("topleft", bty="n",
+       legend=c("Belgium Training Data (2000-2017)",
+                "ARIMAX(5,0,2)-model GDP Forecasting (2018-2020)",
+                "ARIMAX(5,0,2)-model GDP Forecasting (2018-2020)"),
+       col = c("black", "blue", "red"),
+       lty = c(3,3,3), lwd=c(4,4,4), cex=1.2, x.intersp=1.5, y.intersp=0.6)
+
+text(2015, 60, expression(atop(paste("Training Region (2000-2017)"),
+                paste(Model(Unempl) %->% "ARIMAX(p, q, r) ;  ",
+                      XReg %==% X[i], " ", i %in% {1 : 167}))), cex=1.5)
+text(2019.5, 60, expression(atop(paste("Validation Region (2018-2020)"),
+        paste(hat(Unempl) %<-% "ARIMAX(5,0 ,2); ",
+              XReg %==% X[i], " ", i %in% {1 : 167}))), cex=1.5)
+```
+
+* *GDP Description*:   
+[GDP](https://datamarket.com/data/set/196v/gross-domestic-product-at-market-prices) (gross domestic product) is an indicator for a nation?s economic situation. It reflects the total value of all goods and services produced less the value of goods and services used for intermediate consumption in their production. Expressing GDP in PPS (purchasing power standards) eliminates differences in price levels between countries, and calculations on a per head basis allows for the comparison of economies significantly different in absolute size.
+
+[GDP unit of measure](https://ec.europa.eu/eurostat/statistics-explained/index.php/Glossary:GDP_per_capita_in_purchasing_power_standards) represents the *Current prices, euro per capita*. The volume index of GDP per capita in Purchasing Power Standards (PPS) is intended for cross-country comparisons rather than for temporal comparisons. GDP per capita when expressed in PPS eliminates the differences in price levels between countries allowing meaningful volume comparisons of GDP between countries. Expressed in relation to the European Union (*EU27 GDP = 100*), a country with an index that is higher than $100$ or lower than $100$ correspond to that this country's level of GDP per head being higher or lower than the EU average, respectively.
+
+## Bulgaria
+
+Define a new function that (1) cleans the data, and (2) fits the ARIMA model estimating the seasonal and non-seasonal time-series parameters $(p,d,q)$ and the effect-sizes ($\beta$'s) for the exogenous regression features ($X$).
+
+```{r warning=F}
+Bulgaria = filter(time_series,country == "Bulgaria")
+BulgariaARIMA = 
+  Fit_ARIMA(country ='Bulgaria', 
+            start=2000, end=2017, frequency=20,
+            feature="Gross domestic product at market prices")
+
+# Outcome Variable to be modelled, as a timeseries: 2000 - 2017 (18 years, Quarterly measures)
+# Spline interpolation *5;   2000-01 - 2014-20 (300 observations for training): 60 observations (2015-2017) for Testing
+
+Belgium  <- filter(time_series, country == "Belgium")
+Bulgaria <- filter(time_series, country == "Bulgaria")
+Netherlands <- filter(time_series, country == "Netherlands")
+# Test preprocess_ARIMA()
+#preprocess_Belgium <- preprocess_ARIMA(country = 'belgium', start=2000, end=2014,
+#                frequency=20, feature="Gross domestic product at market prices")
+#preprocess_Bulgaria <- preprocess_ARIMA(country = 'bulgaria', start=2000, end=2014,
+#                frequency=20, feature="Gross domestic product at market prices")
+
+
+# Test homologousX_features
+# homoFeat <- homologousX_features(preprocess_Belgium$X, preprocess_Bulgaria$X)
+# X_Belgium  <- homoFeat$X_Country1
+# X_Bulgaria <- homoFeat$X_Country2
+
+
+# Belgium = filter(time_series,country == "Belgium")
+BelgiumARIMA = 
+  fit_ARIMA(country1 = 'Belgium', country2 = 'Bulgaria', # country = Netherlands,
+            start=2000, end=2014, frequency=20,
+            feature="Gross domestic product at market prices" )
+
+# sigma^2 estimated as 45.99:  log likelihood=-919.13 AIC=2116.26 AICc=2359.51 BIC=2631.09
+
+# Outcome Variable to be modelled, as a timeseries: 2000 - 2017 (18 years, Quarterly measures)
+# Spline interpolation x5;   2000-01 - 2014-20 (300 observations for training)
+# ts_Y_Belgium_train <- ts(Y_Belgium_train, start=c(2000,1), end=c(2014, 20), frequency=20)
+# length(ts_Y_Belgium_train)
+# ts_Y_Belgium_test <- ts(Y_Belgium_test, start=c(2015,1), end=c(2017, 20), frequency = 20)
+#length(ts_Y_Belgium_test)
+# Find ARIMAX model
+# arimaX_Belgium_train <- auto.arima(ts_Y_Belgium_train, xreg=X_Belgium_train); # arimaX_Belgium_train$arma
+```
+
+ARIMA model created on Bulgaria: `r BulgariaARIMA$arma`  
+ARIMA model created on Belgium with comparison to Bulgaria `r BelgiumARIMA$arma`
+
+# TS Forecasting
+
+## Perform ARIMAX modeling 
+
+<!-- Predict `Y={Unemployment , Females, From 15-64 years, Total}`, using all other features not directly related to "unemployment". Recall the core data organizaton: -->
+
+Predict `Y={Gross domestic product at market prices}`, using all other features not directly related to ***GDP**. Recall the core data organization:
+
+ - 131 (common BE + BG) `Xreg` Predictors and 1 Outcome Variable to be modeled as a timeseries: 2000 - 2014 (15 years, Quarterly measures, 5-fold spline interpolation, $15*4*5=300$);
+ - Spline interpolation x5 (freq=20 observations per year);   2000-01 to 2014-20 (300 timepoint observations over 15 years, for `training`). The remaining 60 timepoints used for `testing` (2015-01 to 2017-20).
+
+Report `ARIMA(p,d,q)` params and quality metrics AIC/BIC.
+
+The rank order of the top 10 indicators driving up the (relative) GDP-PPS along with their effect-sizes:(**BOOK: VI-173**)
+```{r}
+# Previously, we already extracted the Belgium and Bulgaria Data, preprocess it, 
+# and fit ARIMAX (Belgium-training) model. Now, we will assess the model on Bulgaria_testing sets
+# BelgiumARIMA = fit_ARIMA(country1Data=Belgium, country2Data=Bulgaria,
+#                    start=2000, end=2014, frequency=20,
+#                    feature="Gross domestic product at market prices")
+# BelgiumARIMA$arma    # [1]  4  0  2  0 20  0  0
+
+# View rank-ordered ARIMAX effects:
+# View(BelgiumARIMA$coef[order(BelgiumARIMA$coef)])
+datatable(data.frame(Value=sort(BelgiumARIMA$coef)[1:10]),fillContainer = TRUE)
+#           Unemployment , Females, From 15-64 years, From 18 to 23 months 
+#                                                               -1.5203281 
+#                                                                      ar2 
+#                                                               -1.1808472 
+#                                 Labor cost other than wages and salaries 
+#                                                               -0.8380554 
+#           Unemployment , Females, From 15-64 years, From 12 to 17 months 
+#                                                               -0.7037336 
+#                                                                      ar4 
+#                                                               -0.6360880 
+#                                                                     sar2 
+#                                                               -0.6260002 
+#             Unemployment , Females, From 15-64 years, From 3 to 5 months 
+#                                                               -0.5262376 
+#  Labor cost for LCI (compensation of employees plus taxes minus subsidies) 
+#                                                               -0.2885038 
+#              Unemployment , Females, From 15-64 years, 48 months or over 
+#                                                               -0.2773650 
+#               Unemployment , Males, From 15-64 years, from 3 to 5 months 
+#                                                               -0.2567934 
+```
+
+Doing predictions:
+```{r,warning=FALSE}
+#Get the Prospective Xreg=X design matrices ready (2015-2017, 60 rows)
+preprocess_Belgium <- preprocess_ARIMA( country = 'Belgium', 
+                    start=2000, end=2017, frequency=20, 
+                    feature="Gross domestic product at market prices")
+preprocess_Bulgaria <- preprocess_ARIMA(country = 'Bulgaria',  #Netherlands
+                    start=2000, end=2017, frequency=20, 
+                    feature="Gross domestic product at market prices")
+homoFeat <- homologousX_features(preprocess_Belgium$X, preprocess_Bulgaria$X)
+X_Belgium_test  <- as.matrix(homoFeat$X_Country1[301:360, ])
+X_Bulgaria_test <- as.matrix(homoFeat$X_Country2[301:360, ])
+ 
+
+# Get Predictions
+pred_arimaX_4_0_2_Y_Belgium_train300_Bulgaria_test60 <- 
+      forecast(BelgiumARIMA, xreg = X_Bulgaria_test)$mean
+pred_arimaX_4_0_2_Y_Belgium_train300_Belgium_test60 <- 
+      forecast(BelgiumARIMA, xreg = X_Belgium_test)$mean
+pred_arimaX_4_0_2_Y_Belgium_train300_Offset_Bulgaria_test60 <-
+  forecast(BelgiumARIMA, xreg = X_Bulgaria_test)$mean +
+  mean(pred_arimaX_4_0_2_Y_Belgium_train300_Belgium_test60) -
+  mean(pred_arimaX_4_0_2_Y_Belgium_train300_Bulgaria_test60)
+
+cor(pred_arimaX_4_0_2_Y_Belgium_train300_Belgium_test60, ts_Y_Belgium_test)  # 0.11
+mean(pred_arimaX_4_0_2_Y_Belgium_train300_Belgium_test60) # [1] 118
+
+# Alternative predictions:
+# X_Country1 <- X_Belgium_test; X_Country2 <- X_Bulgaria_test
+# pred_arimaX_1_0_2_Y_Belgium_train300_Bulgaria_test60 <- predict(BelgiumARIMA, n.ahead = 60, newxreg = X_Bulgaria_test)$pred
+# pred_arimaX_1_0_2_Y_Belgium_train300_Belgium_test60 <- predict(BelgiumARIMA, n.ahead = 60, newxreg = X_Belgium_test)$pred
+```
+Belgium test set dimensions: `r dim(X_Belgium_test)`  
+Bulgaria test set dimensions: `r  dim(X_Bulgaria_test)`  
+Correlation: `r cor(pred_arimaX_4_0_2_Y_Belgium_train300_Belgium_test60, ts_Y_Belgium_test)`  
+Mean: `r mean(pred_arimaX_4_0_2_Y_Belgium_train300_Belgium_test60)`
+
+## Display the alternative (spacetime) analytical models (ARIMAX)
+
+Plot only the last 5-years of training (2010-2014), $100TimePoints=5Years\times 4Quarters\times 5SuperSample$ and the 3-year prospective forecasting $60TimePoints=3Years\times 4Quarters\times 5SuperSample$.
+
+```{r, fig.width = 14, fig.height = 20, out.width = "1920", out.height = "2160"}
+ts_Y_Belgium_test <- 
+  ts(preprocess_Belgium$Y[301:360, ], 
+     start=c(2015,1), end=c(2017, 20), frequency = 20)
+
+length(ts_Y_Belgium_test)
+```
+
+```{r Figure 5.15 Output, echo=FALSE}
+# Figure 5.15 Output
+# windows(width=14, height=10)
+png("../Figures/Fig5.15.png",width = 1920,height = 2160,res = 100)
+plot(forecast(BelgiumARIMA, xreg = X_Belgium_test),         # ARIMA forecast
+     include=100, lwd=4, lty=3, 
+     xlab="Time", ylab="GPD Purchasing Power Standards (PPS)",
+     ylim=c(0, 150),
+     main = "ARIMAX Analytics (Train: 2000-2014; Test: 2015-2017) GDP (PPS) Forecasting\n
+      based on fitting ARIMAX Models on raw (spline interpolated) Belgium data")
+lines(pred_arimaX_4_0_2_Y_Belgium_train300_Belgium_test60, 
+      col = "green", lwd = 4, lty=2)   # Belgium train+test
+
+lines(pred_arimaX_4_0_2_Y_Belgium_train300_Bulgaria_test60, 
+      col = "purple", lwd = 4, lty=1) # Belgium train+Bulgaria test
+
+lines(pred_arimaX_4_0_2_Y_Belgium_train300_Offset_Bulgaria_test60, 
+      col = "orange", lwd = 4, lty=1) 
+
+# Belgium train+ Offset Bulgaria test: 188.3753 - 416.5375
+lines(ts_Y_Belgium_test, col = "red", lwd = 6, lty=1)       # Observed Y_Test timeseries
+
+legend("topleft", bty="n", 
+       legend = 
+         c("Belgium Training Data (2000-2014)", 
+           "ARIMAX(4,0,2)-model GDP Forecasting (2015-2017)",
+           "ARIMAX(4,0,2) Belgium train + XReg=Belgium test (2015-2017)",
+           "ARIMAX(4,0,2) Belgium train + XReg=Bulgaria test (2015-2017)",
+           "Offset ARIMAX(4,0,2) Belgium train + XReg=Bulgaria test (2015-2017)",
+           "Belgium Official Reported GDP (2015-2017)"),
+       col=c("black", "blue", "green", "purple", "orange", "red"), 
+       lty=c(3,1,2,1, 1, 1), lwd=c(4,4,4,4,4, 6), cex=1.2, x.intersp=1.5, y.intersp=0.7)
+text(2012.5, 0, expression(atop(paste("Training Region (2000-2014)"), 
+                paste(Model(GDP) %->% "ARIMAX(p, q, r) ;  ", 
+                      XReg %==% as.matrix( X[i] ), " ", i %in% {1 : 131}))), cex=1.2)
+text(2016.5, 0, expression(atop(paste("Validation Region (2015-2017)"), 
+        paste(hat(GDP) %<-% "ARIMAX(4, 0, 2); ", 
+              XReg %==% as.matrix(X[i]), " ", i %in% {1 : 131}))), cex=1.2)
+dev.off()
+```
+
+```{r, fig.width = 14, fig.height = 20, out.width = "1920", out.height = "2160"}
+#Output here:
+
+plot(forecast(BelgiumARIMA, xreg = X_Belgium_test),         # ARIMA forecast
+     include=100, lwd=4, lty=3,
+     xlab="Time", ylab="GPD Purchasing Power Standards (PPS)",
+     ylim=c(0, 150),
+     main = "ARIMAX Analytics (Train: 2000-2014; Test: 2015-2017) GDP (PPS) Forecasting\n
+      based on fitting ARIMAX Models on raw (spline interpolated) Belgium data")
+lines(pred_arimaX_4_0_2_Y_Belgium_train300_Belgium_test60,
+      col = "green", lwd = 4, lty=2)   # Belgium train+test
+
+lines(pred_arimaX_4_0_2_Y_Belgium_train300_Bulgaria_test60,
+      col = "purple", lwd = 4, lty=1) # Belgium train+Bulgaria test
+
+lines(pred_arimaX_4_0_2_Y_Belgium_train300_Offset_Bulgaria_test60,
+      col = "orange", lwd = 4, lty=1)
+
+# Belgium train+ Offset Bulgaria test: 188.3753 - 416.5375
+lines(ts_Y_Belgium_test, col = "red", lwd = 6, lty=1)       # Observed Y_Test timeseries
+
+legend("topleft", bty="n",
+       legend =
+         c("Belgium Training Data (2000-2014)",
+           "ARIMAX(4,0,2)-model GDP Forecasting (2015-2017)",
+           "ARIMAX(4,0,2) Belgium train + XReg=Belgium test (2015-2017)",
+           "ARIMAX(4,0,2) Belgium train + XReg=Bulgaria test (2015-2017)",
+           "Offset ARIMAX(4,0,2) Belgium train + XReg=Bulgaria test (2015-2017)",
+           "Belgium Official Reported GDP (2015-2017)"),
+       col=c("black", "blue", "green", "purple", "orange", "red"),
+       lty=c(3,1,2,1, 1, 1), lwd=c(4,4,4,4,4, 6), cex=1.2, x.intersp=1.5, y.intersp=0.7)
+text(2012.5, 0, expression(atop(paste("Training Region (2000-2014)"),
+                paste(Model(GDP) %->% "ARIMAX(p, q, r) ;  ",
+                      XReg %==% as.matrix( X[i] ), " ", i %in% {1 : 131}))), cex=1.2)
+text(2016.5, 0, expression(atop(paste("Validation Region (2015-2017)"),
+        paste(hat(GDP) %<-% "ARIMAX(4, 0, 2); ",
+              XReg %==% as.matrix(X[i]), " ", i %in% {1 : 131}))), cex=1.2)
+
+```
+
+Plot entire 15-year training time-span  (2000-2014), $300TimePoints=15Years\times 4Quarters\times 5SuperSample$ and the 3-year prospective forecasting $60TimePoints=3Years\times 4Quarters\times 5SuperSample$.  
+Plot showing in **BOOK VI-172-173 Figure 5.15**:
+
+```{r, fig.width = 14, fig.height = 20, out.width = "1920", out.height = "2160"}
+ts_Y_Belgium_test <- ts(preprocess_Belgium$Y[301:360, ], 
+                        start=c(2015,1), end=c(2017, 20), frequency = 20)
+length(ts_Y_Belgium_test)
+```
+
+```{r, fig.width = 14, fig.height = 20, out.width = "1920", out.height = "2160"}
+#Output here
+
+plot(forecast(BelgiumARIMA, xreg = X_Belgium_test),         # ARIMA forecast
+     lwd=4, lty=3, xlab="Time", ylab="GPD Purchasing Power Standards (PPS)",
+     ylim=c(0, 150),
+     main = "ARIMAX Analytics (Train: 2000-2014; Test: 2015-2017) GDP (PPS) Forecasting\n
+      based on fitting ARIMAX Models on raw (spline interpolated) Belgium data")
+lines(pred_arimaX_4_0_2_Y_Belgium_train300_Belgium_test60, 
+      col = "green", lwd = 4, lty=2)   # Belgium train+test
+lines(pred_arimaX_4_0_2_Y_Belgium_train300_Bulgaria_test60, 
+      col = "purple", lwd = 4, lty=1) # Belgium train+Bulgaria test
+lines(pred_arimaX_4_0_2_Y_Belgium_train300_Offset_Bulgaria_test60, 
+      col = "orange", lwd = 4, lty=1) 
+# Belgium train+ Offset Bulgaria test: 188.3753 - 416.5375
+lines(ts_Y_Belgium_test, col = "red", lwd = 6, lty=1) # Observed Y_Test timeseries
+legend("topleft", bty = "n", 
+       legend =
+         c("Belgium Training Data (2000-2014)",  
+           "ARIMAX(4,0,2)-model GDP Forecasting (2015-2017)",
+           "ARIMAX(4,0,2) Belgium train + XReg=Belgium test (2015-2017)",
+           "ARIMAX(4,0,2) Belgium train + XReg=Bulgaria test (2015-2017)",
+           "Offset ARIMAX(4,0,2) Belgium train + XReg=Bulgaria test (2015-2017)",
+           "Belgium Official Reported GDP (2015-2017)"),
+       col=c("black", "blue", "green", "purple", "orange", "red"), 
+       lty=c(3,1,2,1, 1, 1), lwd=c(4,4,4,4,4, 6), cex=1.2, 
+       x.intersp=1.5, y.intersp=0.7)
+
+text(2005, 0, 
+     expression(atop(paste("Training Region (2000-2014)"), 
+                paste(Model(GDP) %->% "ARIMAX(p, q, r) ;  ",
+                      XReg %==% as.matrix( X[i] ), " ", i %in% {1 : 131}))), 
+     cex=1.2)
+
+text(2015, 0, expression(atop(paste("Validation Region (2015-2017)"), 
+        paste(hat(GDP) %<-% "ARIMAX(4, 0, 2); ", 
+              XReg %==% X[i], " ", i %in% {1 : 131}))), cex=1.2)
+```
+
+# Spacekime analytics
+
+## Generic K-Space transformations (FT/IFT)
+
+Let's start by defining the generic k-space transformation.
+
+See the procedure code data for detailed information about transformation functions
+
+## Kime-Phase Distributions
+
+Examine the Kime-direction Distributions of the Phases for all *Belgium* features (predictors + outcome). Define a generic function that plots the Phase distributions.  
+**BOOK VI-174 Figure 5.16**
+
+```{r, fig.width = 14, fig.height = 20, out.width = "2000", out.height = "2500"}
+
+# homoFeat <- homologousX_features(preprocess_Belgium$X, preprocess_Bulgaria$X)
+X_Belgium <- homoFeat$X_Country1; dim(X_Belgium)
+Y_Belgium <- preprocess_Belgium$Y; dim(Y_Belgium)
+
+FT_Belgium <- kSpaceTransform(cbind(X_Belgium, Y_Belgium), FALSE, NULL)
+dataColnames <- c(colnames(X_Belgium), "Y_GDP_Belgium")
+dataColnames <- changetitle(dataColnames)
+```
+
+```{r Figure 5.16 Output, echo = FALSE}
+# Figure 5.16 Output
+png("../Figures/Fig5.16.png",width =2000, height = 2400,res = 80 )
+plotPhaseDistributions(FT_Belgium, dataColnames)
+dev.off()
+```
+
+```{r, fig.width = 14, fig.height = 20, out.width = "2000", out.height = "2500"}
+plotPhaseDistributions(FT_Belgium, dataColnames)
+```
+
+```{r, fig.width = 15, fig.height = 15, out.width = "1920", out.height = "1920"}
+#Take the first 6 features as an example
+plotPhaseDistributions(FT_Belgium, dataColnames,option = "Select",size = 10,select_feature = c(1,2,3,4,5,6))
+
+IFT_FT_Belgium <- kSpaceTransform(FT_Belgium$magnitudes, TRUE, FT_Belgium$phases)
+# Check IFT(FT) == I: 
+# ifelse(abs(cbind(X_Belgium, Y_Belgium)[5,4] - Re(IFT_FT_Belgium[5,4])) < 0.001, "Perfect Syntesis", "Problems!!!")
+```
+
+## Phase Synthesis and ARIMAX re-modeling 
+
+Three different Phase Synthesis methods are introduced here:  
+1.Nil-Phase Synthesis  
+2.Swapped-Phase Synthesis  
+Space-time reconstructions by inverting back the `mag_FT` for each feature signal after swapping the feature-phases. In other words, we randomly shuffle the `columns` of the Phases-matrix (Training & Testing XReg Data) and use these *swapped* phases to synthesize the design covariate matrix ($Xreg$).  
+3.Random-Phase Synthesis  
+Perform Random-Phase reconstruction - `IFT_RandPhase_FT_Belgium` - by randomly sampling from the phase distributions for each feature and then re-fitting the ARIMAX model.  
+
+### Example based on Belgium
+
+**BOOK VI-175-176 Table 5.1** are based on the following result
+
+```{r}
+#Nil-Phase Synthesis
+##Transformation
+Nil_reconstruct<-PS_ARIMAX_remodel(X_Belgium,Y_Belgium,ts_Y_Belgium_test,result = "reconstruct")
+#Dimension
+Nil_reconstruct[[1]]
+Nil_reconstruct[[2]]
+Nil_reconstruct[[3]]
+#Feature names
+datatable(data.frame(feature_name=Nil_reconstruct[[4]]),fillContainer = TRUE)
+#Reconstruct result(part)
+datatable(data.frame(Nil_reconstruct[[6]]),fillContainer = TRUE)
+
+##ARIMAX re-modeling
+Nil_ARIMAX<-PS_ARIMAX_remodel(X_Belgium,Y_Belgium,ts_Y_Belgium_test,result = "ARIMAX")
+Nil_ARIMAX$training_set_length
+Nil_ARIMAX$testing_set_length
+# Find ARIMAX model: 2  1  2  0 20  0  0
+Nil_ARIMAX$AR_MA
+  # Regression with ARIMA(2,0,1)(2,0,0)[20] errors 
+  # Coefficients:
+  #          ar1      ar2     ma1    sar1     sar2  Acquisitions less disposals of non-financial non-produced assets
+  #      -1.4232  -0.8592  -0.987  0.0941  -0.3451                                                            0.0123
+  #s.e.   0.0341   0.0311     NaN  0.0688   0.0742                                                            0.0007
+  # sigma^2 estimated as 0.8622:  log likelihood=-320.39 AIC=914.79   AICc=1148.19   BIC=1422.2
+Nil_ARIMAX$ARIMAX_model
+  # alternatively:
+  # pred_arimax_1_0_1_2015_2017 <- predict(modArima_IFT_NilPhase_FT_Belgium_Y_train, 
+  #                                              n.ahead = 3*20, newxreg = IFT_NilPhase_FT_Belgium_X_test)$pred
+Nil_ARIMAX$feature_effect
+  # Labor cost for LCI (compensation of employees plus taxes minus subsidies), effect=-1.5972295 
+  #                                                                      ar1, effect=-1.4231617 
+  #                                 Labor cost other than wages and salaries, effect=-1.2213214 
+  #                                                                      ma1, effect=-0.9869571 
+  #                                                                      ar2, effect=-0.8591937 
+  #           Unemployment , Females, From 15-64 years, From 12 to 17 months, effect=-0.7075454 
+  #             Unemployment , Total, From 15-64 years, From 18 to 23 months, effect=-0.5797656 
+  #               Unemployment , Males, From 15-64 years, from 3 to 5 months, effect=-0.5026139 
+  #                                                                     sar2, effect=-0.3450866 
+  #             Unemployment , Males, From 15-64 years, from 24 to 47 months, effect=-0.2965540 
+Nil_ARIMAX$Correlation# 0.14
+Nil_ARIMAX$Mean# [1] 105
+#Swapped-Phase Synthesis
+##Transformation
+Swapped_reconstruct<-PS_ARIMAX_remodel(X_Belgium,Y_Belgium,ts_Y_Belgium_test,option = "Swapped-Phase",result = "reconstruct")
+#Dimension
+Swapped_reconstruct[[1]]
+Swapped_reconstruct[[2]]
+Swapped_reconstruct[[3]]
+Swapped_reconstruct[[4]]
+Swapped_reconstruct[[5]]
+#Feature names
+datatable(data.frame(Swapped_reconstruct[[6]]),fillContainer = TRUE)
+#Reconstruct result(part)
+datatable(data.frame(Swapped_reconstruct[[7]]),fillContainer = TRUE)
+##ARIMAX re-modeling
+Swapped_ARIMAX<-PS_ARIMAX_remodel(X_Belgium,Y_Belgium,ts_Y_Belgium_test,option = "Swapped-Phase",result = "ARIMAX")
+
+Swapped_ARIMAX$training_set_length
+Swapped_ARIMAX$testing_set_length
+# Find ARIMAX model: 1  0  2  0 20  0  0
+Swapped_ARIMAX$AR_MA
+  # Regression with ARIMA(1,0,0)(2,0,0)[20] errors 
+  # Coefficients:
+  #          ar1     sar1    sar2  intercept  Acquisitions less disposals of non-financial non-produced assets
+  #      -0.3837  -0.2196  0.2827    46.1704                                                            0.0063
+  #s.e.   0.1113   0.0903  0.0779    36.8492                                                            0.0080
+  # sigma^2 estimated as 70:  log likelihood=-976.01 AIC=2224.02   AICc=2452.63   BIC=2727.73
+Swapped_ARIMAX$ARIMAX_model
+  # alternatively:
+  # pred_arimax_1_0_0_Swapped_2015_2017 <- predict(modArima_IFT_SwappedPhase_FT_Belgium_Y_train, 
+  #                                              n.ahead = 3*20, newxreg = IFT_SwappedPhase_FT_Belgium_X_test)$pred
+Swapped_ARIMAX$feature_effect
+  #                                                                     ar1, effect=-0.38372043 
+  #           Unemployment , Females, From 15-64 years, From 18 to 23 months, effect=-0.31137514 
+  #                                 Labor cost other than wages and salaries, effect=-0.31094561 
+  #                                                                     sar1, effect=-0.21964957 
+  #            Unemployment , Females, From 15-64 years, From 6 to 11 months, effect=-0.20878853 
+  #Labor cost for LCI (compensation of employees plus taxes minus subsidies), effect=-0.12497311 
+  #                Unemployment , Males, From 15-64 years, Less than 1 month, effect=-0.10849013 
+  #                Unemployment , Total, From 15-64 years, 48 months or over, effect=-0.09066684 
+  #               Unemployment , Total, From 15-64 years, From 1 to 2 months, effect=-0.05852382 
+  #              Unemployment , Females, From 15-64 years, 48 months or over, effect=-0.05695172 
+Swapped_ARIMAX$Correlation # 0.0
+Swapped_ARIMAX$Mean# [1] 105
+#Random-Phase Synthesis
+##Transformation
+Random_reconstruct<-PS_ARIMAX_remodel(X_Belgium,Y_Belgium,ts_Y_Belgium_test,option = "Random-Phase",result = "reconstruct")
+#Dimension
+Random_reconstruct[[1]]
+Random_reconstruct[[2]]
+Random_reconstruct[[3]]
+Random_reconstruct[[6]]
+#Feature names
+datatable(data.frame(Random_reconstruct[[4]]),fillContainer = TRUE)
+#Reconstruct result(part)
+datatable(data.frame(Random_reconstruct[[7]]),fillContainer = TRUE)
+##ARIMAX re-modeling
+Random_ARIMAX<-PS_ARIMAX_remodel(X_Belgium,Y_Belgium,ts_Y_Belgium_test,option = "Random-Phase",result = "ARIMAX")
+Random_ARIMAX$training_set_length
+Random_ARIMAX$testing_set_length
+# Find ARIMAX model: 0  0  2  0 20  0  0
+Random_ARIMAX$AR_MA
+  # Regression with ARIMA(0,0,0)(2,0,0)[20] errors 
+  # Coefficients:
+  #         sar1    sar2  Acquisitions less disposals of non-financial non-produced assets
+  #      -0.0743  0.5766                                                            0.0162
+  #s.e.   0.0625  0.0752                                                            0.0100 
+  #sigma^2 estimated as 72.17:  log likelihood=-988.06 AIC=2244.12   AICc=2463.4   BIC=2740.43
+Random_ARIMAX$ARIMAX_model
+  # alternatively:
+  # pred_arimax_1_0_1_Rand_2015_2017 <- predict(modArima_IFT_RandPhase_FT_Belgium_Y_train, 
+  #                                              n.ahead = 3*20, newxreg = IFT_RandPhase_FT_Belgium_X_test)$pred
+Random_ARIMAX$feature_effect
+  # Labor cost for LCI (compensation of employees plus taxes minus subsidies), effect=-0.71989958 
+  #           Unemployment , Females, From 15-64 years, From 18 to 23 months, effect=-0.54541627 
+  #              Unemployment , Females, From 15-64 years, 48 months or over, effect=-0.44230677 
+  #                                 Labor cost other than wages and salaries, effect=-0.32854422 
+  #              Unemployment , Males, From 15-64 years, from 6 to 11 months, effect=-0.24511374 
+  #             Unemployment , Total, From 15-64 years, From 24 to 47 months, effect=-0.19283037 
+  #      Agriculture, forestry and fishing - Employers' social contributions, effect=-0.11994897 
+  #           Unemployment , Females, From 15-64 years, From 24 to 47 months, effect=-0.10835175 
+  #             Unemployment , Females, From 15-64 years, From 1 to 2 months, effect=-0.09093252 
+  #             Unemployment , Total, From 15-64 years, From 18 to 23 months, effect=-0.07427297 
+Random_ARIMAX$Correlation # -0.15
+Random_ARIMAX$Mean # [1] 87.74201
+```
+
+## Result Visualization
+
+**BOOK VI-175 Figure 5.17**
+
+```{r, fig.width = 14, fig.height = 10, out.width = "1920", out.height = "1080"}
+## Plot the results of the model ARIMAX fitting
+ts_Y_Belgium_test <- ts(preprocess_Belgium$Y[301:360, ], 
+                        start=c(2015,1), end=c(2017, 20), frequency = 20)
+length(ts_Y_Belgium_test)
+```
+
+```{r Figure 5.17 Output, echo = FALSE}
+# Figure 5.17 Output
+# windows(width=14, height=10)
+png("../Figures/Fig5.17.png",width = 1920,height = 1080,res = 100)
+plot(forecast(BelgiumARIMA, xreg = X_Belgium_test),         # ARIMA forecast
+     include=60, lwd=4, lty=3, xlab="Time", ylab="GPD Purchasing Power Standards (PPS)",
+     ylim=c(60, 160),
+     main = "Spacekime ARIMAX Analytics (Train: 2000-2014; Test: 2015-2017) GDP (PPS) Forecasting\n
+      based on fitting ARIMAX Models on spline interpolated & kime-transformed Belgium data")
+lines(pred_arimax_2_0_1_Nil_2015_2017, col = "green", lwd = 4, lty=2)   # Belgium Xreg Nil-Phase Reconstructions
+lines(pred_arimax_1_0_0_Swapped_2015_2017, col = "purple", lwd = 4, lty=1) # Belgium Xreg Swapped-Phase Reconstructions
+lines(pred_arimax_0_0_0_Rand_2015_2017, col = "orange", lwd = 4, lty=1) # Belgium Xreg Random-Phase Reconstructions
+lines(ts_Y_Belgium_test, col = "red", lwd = 6, lty=1)       # Observed Y_Test timeseries
+legend("topleft", bty="n", legend=c("Belgium Training Data (2000-2014)", 
+                        "ARIMAX(4,0,2)-model GDP Forecasting (2015-2017)",
+                        "ARIMAX(2,0,1) Belgium Xreg Nil-Phase Reconstruction (2015-2017)",
+                        "ARIMAX(1,0,0) Belgium Xreg Swapped-Phase Reconstructions (2015-2017)",
+                        "ARIMAX(0,0,0)(2,0,0)[20]  Belgium Xreg Random-Phase Reconstructions (2015-2017)",
+                        "Belgium Official Reported GDP (2015-2017)"),
+       col=c("black", "blue", "green", "purple", "orange", "red"), 
+       lty=c(3,1,2,1, 1, 1), lwd=c(4,4,4,4,4, 6), cex=1.2, x.intersp=1.5, y.intersp=0.7)
+text(2013.5, 65, expression(atop(paste("Training Region (2000-2014)"), 
+                paste(Model(GDP) %->% "ARIMAX(p, q, r) ;  ", 
+                      XReg %==% X[i], " ", i %in% {1 : 131}))), cex=1.2)
+text(2016.5, 65, expression(atop(paste("Validation Region (2015-2017)"), 
+        paste(hat(GDP) %<-% "ARIMAX(., ., .); ", 
+              XReg %==% X[i], " ", i %in% {1 : 131}))), cex=1.2)
+dev.off()
+```
+
+```{r, fig.width = 14, fig.height = 10, out.width = "1920", out.height = "1080"}
+plot(forecast(BelgiumARIMA, xreg = X_Belgium_test),         # ARIMA forecast
+     include=60, lwd=4, lty=3, xlab="Time", ylab="GPD Purchasing Power Standards (PPS)",
+     ylim=c(60, 160),
+     main = "Spacekime ARIMAX Analytics (Train: 2000-2014; Test: 2015-2017) GDP (PPS) Forecasting\n
+      based on fitting ARIMAX Models on spline interpolated & kime-transformed Belgium data")
+lines(pred_arimax_2_0_1_Nil_2015_2017, col = "green", lwd = 4, lty=2)   # Belgium Xreg Nil-Phase Reconstructions
+lines(pred_arimax_1_0_0_Swapped_2015_2017, col = "purple", lwd = 4, lty=1) # Belgium Xreg Swapped-Phase Reconstructions
+lines(pred_arimax_0_0_0_Rand_2015_2017, col = "orange", lwd = 4, lty=1) # Belgium Xreg Random-Phase Reconstructions
+lines(ts_Y_Belgium_test, col = "red", lwd = 6, lty=1)       # Observed Y_Test timeseries
+legend("topleft", bty="n", legend=c("Belgium Training Data (2000-2014)", 
+                        "ARIMAX(4,0,2)-model GDP Forecasting (2015-2017)",
+                        "ARIMAX(2,0,1) Belgium Xreg Nil-Phase Reconstruction (2015-2017)",
+                        "ARIMAX(1,0,0) Belgium Xreg Swapped-Phase Reconstructions (2015-2017)",
+                        "ARIMAX(0,0,0)(2,0,0)[20]  Belgium Xreg Random-Phase Reconstructions (2015-2017)",
+                        "Belgium Official Reported GDP (2015-2017)"),
+       col=c("black", "blue", "green", "purple", "orange", "red"), 
+       lty=c(3,1,2,1, 1, 1), lwd=c(4,4,4,4,4, 6), cex=1.2, x.intersp=1.5, y.intersp=0.7)
+text(2013.5, 65, expression(atop(paste("Training Region (2000-2014)"), 
+                paste(Model(GDP) %->% "ARIMAX(p, q, r) ;  ", 
+                      XReg %==% X[i], " ", i %in% {1 : 131}))), cex=1.2)
+text(2016.5, 65, expression(atop(paste("Validation Region (2015-2017)"), 
+        paste(hat(GDP) %<-% "ARIMAX(., ., .); ", 
+              XReg %==% X[i], " ", i %in% {1 : 131}))), cex=1.2)
+```
+
+# Appendix
+
+All functions used in this part
+
+##cleardata()
+```{r}
+#' Impute missing values inside a dataset
+#'
+#' This function is a preliminary way of dealing with NA inside the dataset. This function fills the NA's with column mean and sd
+#'@param mat matrix with missing value(NA) inside
+cleardata <- function(mat){
+  mat = 
+    apply(mat, 2, function(column) 
+      sapply(column, function(x) 
+        ifelse(is.na(x),
+               mean(column,na.rm = T) + 
+                 rnorm( sum(is.na(column) ), sd = sd(column, na.rm = T) ),
+               x) ) )
+  return(mat)
+}
+```
+
+##splinecreate()
+```{r}
+#'use spline regression model to expand the dataset
+#'
+#'This function is mainly focused on time series dataset. Especially in this case, we apply spline regression model to expand the time series data from seasonal period to monthly, even weekly period. Notice that the length.out parameter in this function is fixed to 360, which will expand the time series to a weekly period. But we can change this parameter to get the time period that we desire.
+#'@param mat matrix which contains a time series data. In this function we desire a time series data which has a seasonal period time data.
+splinecreate <- function(mat){
+  res<-NULL
+  for (i in 1:ncol(mat)) {
+    sp<-smooth.spline(seq(1:72),mat[,i])
+    spresult<-predict(sp,seq(from=0,by=1/5,length.out = 360))
+    spfeat<-spresult$y+rnorm(360,sd=sd(mat[,i]))
+    res<-cbind(res,spfeat)
+  }
+  colnames(res)<-colnames(mat)
+  return(res)
+}
+```
+
+##rmv_miss_ftr()
+```{r,warning=FALSE}
+#'Remove features with all missing values
+#'
+#' This function deletes features that are missing for all time points 
+#' associated with a certain country
+#'@param countryName give a country name that is shown on the original dataset
+rmv_miss_ftr = function(countryName = "Bulgaria"){
+  DataSuperSample = 
+    time_series %>% 
+    filter(country == countryName) %>%
+    select_if( function(col) sum(is.na(col)) != length(col) ) %>%
+    select(-time, -country) %>%
+    as.matrix() %>%
+    cleardata() %>%
+    as.data.frame()%>%
+    # remove feature that only has one value
+    select_if(function(col) sum(is.na(col)) == 0 ) %>%
+    # remove feature that all the values are 0
+    select_if(function(col) sum(col) != 0 ) %>%
+    splinecreate() %>%
+    as.data.frame()
+  return(DataSuperSample)
+}
+
+##Concern: The name of country "German" has changed inside the dataset once.
+```
+
+##Fit_ARIMA()
+```{r,warning=FALSE}
+#'Clean and fit ARIMA model
+#'
+#' This function cleans the data and fits the ARIMA model
+#'@param country Give a country name that is shown on the original dataset
+#'@param start Select the start year to create the ARIMA model
+#'@param end Select the end year to create the ARIMA model
+#'@param frequency The number of observations per unit of time. The same in function "ts"
+#'@param feature Choose one feature to create the ARIMA model on
+Fit_ARIMA <- function(country = 'Belgium', 
+                      start = 2000, end = 2017, frequency = 20,
+                      feature="Unemployment , Females, From 15-64 years, Total")
+{
+  # delete features that are missing for all time points
+  DataSuperSample = rmv_miss_ftr(countryName = country)
+  if (feature=="Unemployment , Females, From 15-64 years, Total") {
+      Y = select(DataSuperSample, "Unemployment , Females, From 15-64 years, Total")
+      X = select(DataSuperSample, -starts_with("Unemployment"))
+  } else if (feature=="Gross domestic product at market prices") {
+    Y = select(DataSuperSample, "Gross domestic product at market prices"); dim(Y)
+    X = select(DataSuperSample, -matches("debt|Debt")); dim(X)  # 360 167
+    print(paste0("dim(X)=(", dim(X)[1], ",", dim(X)[2], ");  ",
+                 " dim(Y)=(", dim(Y)[1], ",", dim(Y)[2], ") ..."))
+    # ensure full-rank design matrix, X
+    X <- X[, qr(X)$pivot[seq_len(qr(X)$rank)]]; dim(X)  
+  }
+  else {
+    print(paste0("This feature ", feature, " is not imlemented yet! Exiting Fit_ARIMA() method ...")) 
+    return(NULL)
+  }
+  ts_Y <- ts(Y, start=c(start, 1), end=c(end, frequency), 
+             frequency = frequency); length(ts_Y)
+  set.seed(1234)
+  fitArimaX = auto.arima(ts_Y, xreg=as.matrix(X) )
+  return(fitArimaX)
+}
+```
+
+##preprocess_ARIMA()
+```{r}
+#'Preprocess dataset of given countries to ensure full rank
+#'
+#'Extend the Fit-ARIMA method to ensure testing-training 
+#'modeling/assessment for 2 countries works
+#'
+#'@param country Give a country name that is shown on the original dataset
+#'@param start Select the start year to create the ARIMA model
+#'@param end Select the end year to create the ARIMA model
+#'@param frequency The number of observations per unit of time. The same in function "ts"
+#'@param feature Choose one feature to create the ARIMA model on
+preprocess_ARIMA <- 
+  function(country='Belgium',start=2000, end=2017, frequency=20,
+           feature="Unemployment , Females, From 15-64 years, Total")
+{
+  # delete features that are missing for all time points
+  DataSuperSample = rmv_miss_ftr(countryName = country)
+
+  print(paste0("Processing feature: ...", feature, "... "))
+      
+  if (feature == "Unemployment , Females, From 15-64 years, Total") {
+      Y = select(DataSuperSample, 
+                 "Unemployment , Females, From 15-64 years, Total")
+      X = select(DataSuperSample, 
+                 -starts_with("Unemployment"))
+  } else if (feature == "Gross domestic product at market prices") {
+      Y = select(DataSuperSample, 
+                 "Gross domestic product at market prices"); dim(Y)
+      X = select(DataSuperSample, 
+                 -matches("debt|Debt") )
+      X <- X [, -c(50:80)]; dim(X)  # 360 167
+  } else {
+    print(paste0("This feature: ...", 
+                 feature, 
+                 "... is not imlemented yet! Exiting preprocess_ARIMA() method ...")) 
+    return(NULL)
+  }
+  
+  # reduce the number of observations (matrix rows) to specified timerange
+  len_1 <- (end + 1 - start) * frequency; print(paste0("dim(X)[1]=", len_1))
+  X <- X[1:len_1 , qr(X[1:len_1 , ])$pivot[seq_len(qr(X[1:len_1 , ])$rank)]]; dim(X)  
+  # ensure full-rank design matrix, X
+  Y <- as.data.frame(Y[1:len_1 , ])
+  print(paste0("dim(X)=(", dim(X)[1], ",", dim(X)[2], ");  ",         # 300 136
+                 " dim(Y)=(", dim(Y)[1], ",", dim(Y)[2], ") ..."))    # 300 1
+  return( list("X"=X, "Y"=Y) )
+}
+```
+
+##homologousX_features()
+```{r}
+#' General function that ensures the XReg predictors for 2 countries are homologous
+#'
+#'@param X_Country1 value inhereted from previous function "preprocess_ARIMA"
+#'@param X_Country2 value inhereted from previous function "preprocess_ARIMA"
+homologousX_features <- function (X_Country1, X_Country2){
+  # Check if Xreg for Belgium and Bulgaria are homologous (same feature columns)
+  common_cols <- intersect(colnames(X_Country1), colnames(X_Country2))
+  X_Country1 <- subset(X_Country1, select = common_cols)
+  X_Country2 <- subset(X_Country2, select = common_cols)
+  print(paste0("dim(X1)=(", dim(X_Country1)[1], ",", dim(X_Country1)[2], ");  ", # 300 131
+              " dim(X2)=(", dim(X_Country2)[1], ",", dim(X_Country2)[2], ")!"))  # 300 131
+  return(list("X_Country1"=X_Country1, "X_Country2"=X_Country2))
+}
+```
+
+##fit_ARIMA()
+```{r}
+#'Set up ARIMAX model with homologous features
+#'
+#'This function is based on two previous functions "preprocess_ARIMA" and "homologousX_features". It gets the homologous features between two countries and create ARIMAX model on them.
+#'
+#'@param country1 Give a country name that is shown on the original dataset, ARIMAX model will be created based on the data of this country
+#'@param country2 Give a country name that is shown on the original dataset, this country data will only be used to get the homologous features with country 1
+#'@param start Select the start year to create the ARIMA model
+#'@param end Select the end year to create the ARIMA model
+#'@param frequency The number of observations per unit of time. The same in function "ts"
+#'@param feature Choose one feature to create the ARIMA model on
+fit_ARIMA <- 
+  function(country1='Belgium', country2= 'Bulgaria', 
+           start=2000, end=2014, frequency=20,
+           feature="Gross domestic product at market prices"){
+  # This function 
+  preprocess_Country1 <- preprocess_ARIMA(country = country1, 
+                    start=start, end=end, frequency=frequency, feature=feature)
+  preprocess_Country2 <- preprocess_ARIMA(country = country2, 
+                    start=start, end=end, frequency=frequency, feature=feature)
+  ts_Y_Country1 <- ts(preprocess_Country1$Y, start=c(start, 1), 
+            end=c(end, frequency), frequency = frequency); length(ts_Y_Country1)
+  
+  homoFeat <- homologousX_features(preprocess_Country1$X, preprocess_Country2$X)
+  X_Country1  <- homoFeat$X_Country1
+  X_Country2 <- homoFeat$X_Country2
+  
+  set.seed(1234)
+  fitArimaX_Country1 = auto.arima(ts_Y_Country1, xreg=as.matrix(X_Country1))
+  return(fitArimaX_Country1)
+}
+```
+
+##fftshift1D()
+```{r}
+#'1D timeseries FFT SHIFT
+fftshift1D <- function(img_ff) {
+  rows <- length(img_ff)   
+  rows_half <- ceiling(rows/2)
+  return(append(img_ff[(rows_half+1):rows], img_ff[1:rows_half]))
+}
+##This function isn't really being used in our report
+```
+
+##KSpaceTransform()
+```{r}
+#'K-space transformation
+#'
+#' Generic function to Transform Data ={all predictors (X) and outcome (Y)} to k-space (Fourier domain)
+#' For ForwardFT, set parameters as (rawData, FALSE, NULL)
+#' For InverseFT, there are two parameters setting: (magnitudes, TRUE, reconPhasesToUse) or (FT_data, TRUE, NULL)
+#' @param data dataset that needs K-space transformation
+kSpaceTransform <- function(data, inverse = FALSE, reconPhases = NULL) {
+  # ForwardFT (rawData, FALSE, NULL)
+  # InverseFT(magnitudes, TRUE, reconPhasesToUse) or InverseFT(FT_data, TRUE, NULL)
+  FT_data <- array(complex(), c(dim(data)[1], dim(data)[2]))
+  mag_FT_data <- array(complex(), c(dim(data)[1], dim(data)[2]))
+  phase_FT_data <- array(complex(), c(dim(data)[1], dim(data)[2]))
+  IFT_reconPhases_data <- array(complex(), c(dim(data)[1], dim(data)[2]))
+
+  for (i in 1:dim(data)[2]) {
+    if (inverse == FALSE | is.null(reconPhases)) {
+      FT_data[ , i] <- fft(data[ , i], inverse)
+      X2 <- FT_data[ , i]
+      # plot(fftshift1D(log(Re(X2)+2)), main = "log(fftshift1D(Re(FFT(timeseries))))") 
+      mag_FT_data[ , i] <- sqrt(Re(X2)^2+Im(X2)^2); 
+      # plot(log(fftshift1D(Re(mag_FT_MCSI_data))), main = "log(Magnitude(FFT(timeseries)))") 
+      phase_FT_data[ , i] <- atan2(Im(X2), Re(X2)); 
+      # plot(Re(fftshift1D(phase_FT_MCSI_data[ , 1])), main = "Shift(Phase(FFT(timeseries)))")
+    }
+    else {  # for IFT synthesis using user-provided Phases, typically from kime-phase aggregators
+      Real <- data[ , i] * cos(reconPhases[ , i])  
+      Imaginary <- data[ , i] * sin(reconPhases[ , i]) 
+      IFT_reconPhases_data[ ,i] <- 
+          Re(fft(Real+1i*Imaginary, inverse = TRUE)/length(data[ , i]))
+    }
+  }
+    ######### Test the FT-IFT analysis-synthesis back-and-forth transform process 
+    #         to confirm calculations
+    # X2 <- FT_data[ , 1]; mag_FT_data[ , 1] <- sqrt(Re(X2)^2+Im(X2)^2); 
+    # phase_FT_data[ , 1] <- atan2(Im(X2), Re(X2)); 
+    # Real2 = mag_FT_data[ , 1] * cos(phase_FT_data[ , 1])
+    # Imaginary2 = mag_FT_data[ , 1] * sin(phase_FT_data[ , 1])
+    # man_hat_X2 = Re(fft(Real2 + 1i*Imaginary2, inverse = T)/length(X2))
+    # ifelse(abs(man_hat_X2[5] - data[5, 1]) < 0.001, "Perfect Syntesis", "Problems!!!")
+    #########
+  
+    if (inverse == FALSE | is.null(reconPhases)) {
+      return(list("magnitudes"=mag_FT_data, "phases"=phase_FT_data))
+      # Use kSpaceTransform$magnitudes & kSpaceTransform$phases to retrieve teh Mags and Phases
+    }
+    else {
+      return(IFT_reconPhases_data)
+      # Use Re(kSpaceTransform) to extract spacetime Real-valued reconstructed data
+    }
+}
+```
+
+##changetitle()
+```{r}
+#' Reshape the title
+#'
+#' @param titl vector contains titles that need to be reshaped
+changetitle <- function(titl) {
+  newtitle<-rep(NA,length(titl))
+  for (i in 1:length(titl)) {
+    tempchar<-substring(titl[i],1:nchar(titl[i]),1:nchar(titl[i]))
+    for (j in 1:8) {
+      k=25*j
+      tempchar[which(tempchar==" ")[which(tempchar==" ")>k][1]]<-"\n"
+    }
+    tempchar<-paste(tempchar,collapse = "")
+    newtitle[i]<-tempchar
+  }
+  return(newtitle)
+}
+```
+
+
+##plotPhaseDistributions()
+```{r}
+#' Creating plot result for K-space transformation
+#'
+#' This function can choose to generate all plots related to the K-space transformation. Or we could choose features code to select features we like to see to generate K-space transformation result.
+#'
+#'@param dataFT data inherited from function "kSpaceTransform", K-space transformed dataset.
+#'@param dataColnames feature names for the transformed dataset
+#'@param size size of the text inside the plot
+#'@param option two options avaliable: "All": to plot for all features, "Select": to select several features you wish to show 
+#'@param select_feature if "option" is setted as "Select", then put inside a sequence to indicate the features you wish to show with this function.
+plotPhaseDistributions <- function (dataFT, dataColnames, size=10, option="ALL",select_feature=NULL,...) {
+  df.phase <- as.data.frame(Re(dataFT$phases))
+  df.phase %>% gather() %>% head()
+  colnames(df.phase) <- dataColnames
+  phaseDistributions <- gather(df.phase)
+  colnames(phaseDistributions) <- c("Feature", "Phase")
+  if (is.null(size)) size=10
+  
+  # map the value as our x variable, and use facet_wrap to separate by the key column:
+  if(option=="ALL"){
+  ggplot(phaseDistributions, aes(Phase)) + 
+    # geom_histogram(bins = 10) + 
+    geom_histogram(aes(y=..density..), bins = 10) + 
+    facet_wrap( ~Feature, scales = 'free_x') +
+    xlim(-pi, pi) + 
+    theme(strip.text.x = element_text(size = size, colour = "black", angle = 0))}
+  else if(option=="Select"){
+    choosefeat<-dataColnames[select_feature]
+    NphaseDistributions<-phaseDistributions[which(phaseDistributions$Feature %in% choosefeat),]
+  ggplot(NphaseDistributions, aes(Phase)) + 
+    # geom_histogram(bins = 10) + 
+    geom_histogram(aes(y=..density..), bins = 10) + 
+    facet_wrap( ~Feature, scales = 'free_x') +
+    xlim(-pi, pi) + 
+    theme(strip.text.x = element_text(size = size, colour = "black", angle = 0))}
+  else{
+    return("Wrong input on option, Please try again")
+  }
+}
+```
+
+##PS_ARIMAX_remodel()
+```{r}
+#'Conduct three different phase synthesis methods and create ARIMAX model based on different method.
+#'
+#'This function can reconstruct the dataset based on three phase synthesis methods: Nil-Phase Synthesis, Swapped-Phase Synthesis and Random-Phase Synthesis. Also it can construct different ARIMAX model based on the phase synthesis method chosen. 
+#'
+#'@param X inherited from function "homologousX_features", we can get parameter X by "homologousX_features(country1,country2)$$X_Country1"
+#'@param Y inherited from function "preprocess_ARIMA", we can get parameter Y by "preprocess_ARIMA$Y"
+#'@param ts_Y_test time series vector, must be set from function "ts" and must be created based on testing set
+#'@param option choose the phase synthesis method used in the reconstruction or ARIMAX model. Three options are valid: "Nil-Phase", "Swapped-Phase", "Random-Phase"
+#'@param result choose the result shown by this function. Two options are valid: "ARIMAX": this will show the ARIMAX model created by the chosen phase synthesis method. "reconstruct": this will show the reconstruction procedure based on the chosen phase synthesis method, but the ARIMAX model won't be built.
+#'@param rename_Y rename the return result of Y
+#'
+#'@return if the "result" parameter is setted as "reconstruct", then the reconstruction result will be shown. if setted as "ARIMAX", then the detailed ARIMAX model will be built.
+
+PS_ARIMAX_remodel <- function(X,Y,ts_Y_test,option="Nil-Phase",result="ARIMAX",rename_Y="Y_GDP_Belgium") {
+  temp_data<-cbind(X,Y)
+  FT<-kSpaceTransform(temp_data, FALSE, NULL)
+  if(option=="Nil-Phase"){
+    nilPhase_FT_data <- array(complex(real=0, imaginary=0), c(dim(temp_data)[1], dim(temp_data)[2]))
+    ##IFT_NilPhase_FT <- array(complex(), c(dim(temp_data)[1], dim(temp_data)[2]))
+    #       Invert back to spacetime the FT_Belgium$magnitudes[ , i] signal with nil-phase
+    IFT_NilPhase_FT<- Re(kSpaceTransform(FT$magnitudes, TRUE, nilPhase_FT_data))
+    colnames(IFT_NilPhase_FT) <- c(colnames(X), rename_Y)
+
+    #result
+    if(result=="reconstruct"){
+      return(list(
+    dim(nilPhase_FT_data),dim(IFT_NilPhase_FT), dim(FT$magnitudes),
+    colnames(IFT_NilPhase_FT), head(IFT_NilPhase_FT),IFT_NilPhase_FT)) # head(temp_Data)
+    }
+    #rename
+    IFT_FT<-IFT_NilPhase_FT
+  }
+  else if(option=="Swapped-Phase"){
+    
+    swapped_phase_FT_data <- FT$phases
+    colnames(swapped_phase_FT_data) <- c(colnames(X), rename_Y)
+    swapped_phase_FT_data1 <- swapped_phase_FT_data
+    IFT_SwappedPhase_FT <- array(complex(), c(dim(temp_data)[1], dim(temp_data)[2]))
+    set.seed(12345)   # sample randomly Phase-columns for each of the 131 covariates (X)
+    #swap_phase_FT_Belgium_indices <- sample(ncol(swapped_phase_FT_Belgium_data)-1)
+    # for (j in 1:131) {  # for all coluns of the design Xreg matrix, excluding Y, randomly swap columns phases
+    #  swapped_phase_FT_Belgium_data1[ , j] <- swapped_phase_FT_Belgium_data[, swap_phase_FT_Belgium_indices[j]]
+    #}
+    swapped_phase_FT_data1 <- as.data.frame(cbind(
+      swapped_phase_FT_data[ , sample(ncol(swapped_phase_FT_data[ , 1:(ncol(swapped_phase_FT_data)-1)]))], 
+      swapped_phase_FT_data[ , ncol(swapped_phase_FT_data)]))
+    swapped_phase_FT_data <- swapped_phase_FT_data1
+    colnames(swapped_phase_FT_data)[ncol(swapped_phase_FT_data)] <- rename_Y
+    colnames(swapped_phase_FT_data)
+    
+    # Invert back to spacetime the FT_Belgium$magnitudes[ , i] signal using the feature swapped phases
+    IFT_SwappedPhase_FT <- Re(kSpaceTransform(FT$magnitudes, TRUE, swapped_phase_FT_data))
+    
+    colnames(IFT_SwappedPhase_FT) <- c(colnames(X), rename_Y)
+
+    #result
+    if(result=="reconstruct"){
+      return(list(
+    dim(swapped_phase_FT_data) ,
+    # [1] 360 132
+    dim(swapped_phase_FT_data), dim(FT$phases),
+    dim(IFT_SwappedPhase_FT), dim(FT$magnitudes),
+    colnames(IFT_SwappedPhase_FT), tail(IFT_SwappedPhase_FT),IFT_SwappedPhase_FT)) # tail(temp_Data)
+    }
+    #rename
+    IFT_FT<-IFT_SwappedPhase_FT
+  }
+  else if(option=="Random-Phase"){
+    
+    #randPhase_FT_data <- array(complex(), c(dim(temp_data)[1], dim(temp_data)[2]))
+    IFT_RandPhase_FT <- array(complex(), c(dim(temp_data)[1], dim(temp_data)[2]))
+    randPhase_FT_data <- FT$phases
+    for (i in 1:(dim(randPhase_FT_data)[2] -1)) {
+      if (i < dim(randPhase_FT_data)[2]) {
+        set.seed(12345)   # sample randomly Phases for each of the 131 predictors covariates (X)
+        randPhase_FT_data[ , i] <- FT$phases[sample(nrow(FT$phases)), i]
+      } else {   } # for the Y outcome (Last Column) - do not change the phases of the Y
+    }
+    #       Invert back to spacetime the FT_Belgium$magnitudes[ , i] signal with avg-phase
+    IFT_RandPhase_FT <- Re(kSpaceTransform(FT$magnitudes, TRUE, randPhase_FT_data))
+    colnames(IFT_RandPhase_FT) <- c(colnames(X), rename_Y)
+    
+    #result
+    if(result=="reconstruct"){
+    return(  list(
+    dim(randPhase_FT_data),    # ;  head(randPhase_FT_data)
+    # [1] 360 132
+    dim(IFT_RandPhase_FT), dim(FT$magnitudes) ,
+    colnames(IFT_RandPhase_FT), tail(IFT_RandPhase_FT), # tail(temp_Data)
+    dim(IFT_RandPhase_FT), head(Re(IFT_RandPhase_FT)), tail(Re(IFT_RandPhase_FT))))
+    }
+    #rename
+    IFT_FT<-IFT_RandPhase_FT
+  }
+  if(result=="ARIMAX"){
+  #construction of time-series analysis
+  # Perform ARIMAX modeling on IFT_NilPhase_FT_Belgium; report (p,d,q) params and quality metrics AIC/BIC
+  # library(forecast)
+  IFT_FT_Y_train <- IFT_FT[1:300, ncol(IFT_FT)]
+  IFT_FT_Y_test <- IFT_FT[301:360]
+  
+  # Training and Testing Data Covariates explaining the longitudinal outcome (Y)
+  IFT_FT_X_train <- as.data.frame(IFT_FT)[1:300, 1:(ncol(IFT_FT)-1)]; dim(IFT_FT_X_train)
+  IFT_FT_X_test <- as.data.frame(IFT_FT)[301:360, 1:(ncol(IFT_FT)-1)]; dim(IFT_FT_X_test)
+  
+  # Outcome Variable to be ARIMAX-modelled, as a timeseries
+  ts_IFT_FT_Y_train <- 
+    ts(IFT_FT_Y_train, start=c(2000,1), end=c(2014, 20), frequency = 20)
+  
+  set.seed(1234)
+  modArima_IFT_FT_Y_train <- 
+    auto.arima(ts_IFT_FT_Y_train, xreg=as.matrix(IFT_FT_X_train))
+
+  pred_arimax <- forecast(modArima_IFT_FT_Y_train, xreg = as.matrix(IFT_FT_X_test))
+  pred_arimax_2015_2017 <- 
+    ts(pred_arimax$mean, frequency=20, start=c(2015,1), end=c(2017,20))
+  # alternatively:
+  # pred_arimax_1_0_1_2015_2017 <- predict(modArima_IFT_NilPhase_FT_Belgium_Y_train, 
+  #                                              n.ahead = 3*20, newxreg = IFT_NilPhase_FT_Belgium_X_test)$pred
+  sort(modArima_IFT_FT_Y_train$coef)[1:10]
+  # Labor cost for LCI (compensation of employees plus taxes minus subsidies), effect=-1.5972295 
+  #                                                                      ar1, effect=-1.4231617 
+  #                                 Labor cost other than wages and salaries, effect=-1.2213214 
+  #                                                                      ma1, effect=-0.9869571 
+  #                                                                      ar2, effect=-0.8591937 
+  #           Unemployment , Females, From 15-64 years, From 12 to 17 months, effect=-0.7075454 
+  #             Unemployment , Total, From 15-64 years, From 18 to 23 months, effect=-0.5797656 
+  #               Unemployment , Males, From 15-64 years, from 3 to 5 months, effect=-0.5026139 
+  #                                                                     sar2, effect=-0.3450866 
+  #             Unemployment , Males, From 15-64 years, from 24 to 47 months, effect=-0.2965540 
+  return(list(
+  training_set_length=length(IFT_FT_Y_train),
+  testing_set_length=length(IFT_FT_Y_test),
+  AR_MA=modArima_IFT_FT_Y_train$arma,
+  ARIMAX_model=pred_arimax_2015_2017,
+  feature_effect=sort(modArima_IFT_FT_Y_train$coef)[1:10],
+  Correlation=cor(pred_arimax$mean, ts_Y_test), 
+  Mean=mean(pred_arimax_2015_2017)))} 
+  else{
+    print(paste0("Wrong input for option or result, please try again.") )
+    return(NULL)
+  }
+}
+```
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->

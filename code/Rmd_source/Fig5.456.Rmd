@@ -1,0 +1,297 @@
+---
+title: "Figure 5.4, 5.5, 5.6 [Figure 5.3](Fig5.3.html)"
+subtitle: "[Back To Index](index.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: SOCR_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warings = FALSE)
+```
+
+
+
+# Longitudinal Data (Timeseries/Kimeseries) Example
+
+This timeseries demonstration shows the effects of indexing timeseries (univariate) data only using time and compares the representation of timeseries and kimeseries, which has profound impact on the subsequent data analytics. TO keep this application grounded, we will use real 4D fMRI data ($x=64 \times y=64\times z=21\times t=180$), but only focus on one spatial location (${\bf{x}}=(x,y,z)\in R^3$). More details are provided in [DSPA Chapter 3](http://www.socr.umich.edu/people/dinov/courses/DSPA_notes/03_DataVisualization.html).
+
+```{r message=F, warning=F}
+# install EBImage
+# source("https://bioconductor.org/biocLite.R")
+# biocLite("EBImage")
+library(EBImage)
+require(brainR)
+library(spatstat) 
+```
+
+```{r echo = FALSE}
+# 1D timeseries FFT SHIFT
+fftshift1D <- function(img_ff) {
+  rows <- length(img_ff)   
+  rows_half <- ceiling(rows/2)
+  return(append(img_ff[(rows_half+1):rows], img_ff[1:rows_half]))
+}
+```
+
+```{r}
+# 1. download the 4D fMRI data
+fMRIURL <- "http://socr.umich.edu/HTML5/BrainViewer/data/fMRI_FilteredData_4D.nii.gz"
+fMRIFile <- file.path(tempdir(), "fMRI_FilteredData_4D.nii.gz")
+download.file(fMRIURL, dest=fMRIFile, quiet=TRUE)
+(fMRIVolume <- readNIfTI(fMRIFile, reorient=FALSE))
+# dimensions: 64 x 64 x 21 x 180 ; 4mm x 4mm x 6mm x 3 sec 
+
+fMRIVolDims <- dim(fMRIVolume); fMRIVolDims
+# time_dim <- fMRIVolDims[4]; time_dim ## 180
+
+```
+## Figure 5.4
+
+```{r, fig.height=8, fig.width=8}
+# 2. extract the time-corse of one voxel (25, 25, 12)  # 64  64 21 180
+x1 <- c(1:180)
+y1 <- loess(fMRIVolume[25, 25, 12, ]~ x1, family = "gaussian")
+
+# windows(width=10, height=8) # For Windows Users
+# dev.new(height = 10, width = 8) # For Mac OS Users
+
+plot(fMRIVolume[25, 25, 12, ], type='l', 
+     main="Time Series of 3D Voxel \n (x=25, y=25, z=12)", col="blue", 
+     xlab = "Time", ylab = "fMRIVolume[25, 25, 12, ] Intensities")
+lines(x1, smooth(fMRIVolume[25, 25, 12, ]), col = "red", lwd = 2)
+lines(ksmooth(x1, fMRIVolume[25, 25, 12, ], kernel = "normal", bandwidth = 5), col = "green", lwd = 3)
+legend("bottomright", legend=c("(raw) fMRI", "smooth(fMRI)", "ksmooth(fMRI"),
+       col=c("blue", "red", "green"), lty=1, lwd=4, cex=1.1, y.intersp=0.6,
+       x.intersp=1.0, title = "Voxel (25, 25, 12)", bty = "n")
+```
+
+
+```{r, echo = FALSE}
+# Figure 5.4 Output
+png("../Figures/Fig5.4.png",width = 1200,height = 900, res = 100)
+plot(fMRIVolume[25, 25, 12, ], type='l', 
+     main="Time Series of 3D Voxel \n (x=25, y=25, z=12)", col="blue", 
+     xlab = "Time", ylab = "fMRIVolume[25, 25, 12, ] Intensities")
+lines(x1, smooth(fMRIVolume[25, 25, 12, ]), col = "red", lwd = 2)
+lines(ksmooth(x1, fMRIVolume[25, 25, 12, ], kernel = "normal", bandwidth = 5), col = "green", lwd = 3)
+legend("bottomright", legend=c("(raw) fMRI", "smooth(fMRI)", "ksmooth(fMRI"),
+       col=c("blue", "red", "green"), lty=1, lwd=4, cex=1.1, y.intersp=0.6,
+       x.intersp=1.0, title = "Voxel (25, 25, 12)", bty = "n")
+dev.off()
+```
+
+
+
+
+
+```{r, fig.height=8, fig.width=8}
+# 3. FT of 1D time-course
+y2 <- fMRIVolume[25, 25, 12, ]
+X2 = fft(y2); plot(fftshift1D(log(Re(X2)+2)), main = "log(fftshift1D(Re(FFT(timeseries))))") 
+X2_mag <- sqrt(Re(X2)^2+Im(X2)^2); plot(log(fftshift1D(Re(X2_mag))), main = "log(Magnitude(FFT(timeseries)))") 
+X2_phase <- atan2(Im(X2), Re(X2)); plot(fftshift1D(X2_phase), main = "Shift(Phase(FFT(timeseries)))")
+
+##  Implicit Automated IFT
+hat_X2 = Re(fft(X2, inverse = T)/length(X2))
+plot(hat_X2, main = "Re(IFT(FFT(timeseries)))")   # point plot represents the IFT(FT(data))
+lines(x1, y2, col = "red", lwd = 2)               # lines represent the raw data time-course (should coincide)
+
+## Manually invert the FT (IFT) using the magnitudes and phases
+Real2 = X2_mag * cos(X2_phase)
+Imaginary2 = X2_mag * sin(X2_phase)
+man_hat_X2 = Re(fft(Real2 + 1i*Imaginary2, inverse = T)/length(X2))
+plot(man_hat_X2, type="l", lwd=2, main = "Manual IFT (Magnitude, Phase) Synthesis")
+lines(x1, y2, col = "red", lty=2, lwd = 2)  # overlay original data to confirm PERFECT manual reconstruction
+
+```
+
+## Figure 5.5
+```{r, fig.height=8, fig.width=8}
+# IFT reconstruction (synthesis) using fMRI-Magnitude and Nil-Phase
+Real_phase0 = X2_mag * cos(0)
+Imaginary_phase0 = X2_mag * sin(0)
+ift_NilPhase_X2mag = Re(fft(Real_phase0 + 1i*Imaginary_phase0, inverse = T)/length(X2))
+# windows(width=10, height=8)
+# dev.new(height = 10, width = 8) # For Mac OS Users
+plot(ift_NilPhase_X2mag, col="red", type="l", lty=2, lwd=2, 
+     ylim=c(10270, 10500), main=sprintf('Signal Synthesis: IFT (Magnitude=Real, Phase=Nil)\n Correlation(Real, Recon) = %s', format(cor(ift_NilPhase_X2mag, y2), digits=3)), xlab = "Time", 
+     ylab = "IFT(NilPhase_Reconstruction)[25, 25, 12, ]", cex=1.3)
+lines(x1, y2, col = "black", lwd = 2)  # overlay original data to show Nil-Phase effects on reconstruction
+legend("top", bty="n", legend=c("(raw) fMRI", "Nil-Phase (Time-only) Reconstruction"),
+       col=c("black", "red"), lty=c(1,2), lwd=c(2,2), cex=1.3, x.intersp=0.8)
+# cor(ift_NilPhase_X2mag, y2)
+```
+
+
+
+```{r, echo = FALSE}
+# Figure 5.5 Output
+png("../Figures/Fig5.5.png",width = 1200,height = 900, res = 100)
+plot(ift_NilPhase_X2mag, col="red", type="l", lty=2, lwd=2, 
+     ylim=c(10270, 10500), main=sprintf('Signal Synthesis: IFT (Magnitude=Real, Phase=Nil)\n Correlation(Real, Recon) = %s', format(cor(ift_NilPhase_X2mag, y2), digits=3)), xlab = "Time", 
+     ylab = "IFT(NilPhase_Reconstruction)[25, 25, 12, ]", cex=1.3)
+lines(x1, y2, col = "black", lwd = 2)  # overlay original data to show Nil-Phase effects on reconstruction
+legend("top", bty="n", legend=c("(raw) fMRI", "Nil-Phase (Time-only) Reconstruction"),
+       col=c("black", "red"), lty=c(1,2), lwd=c(2,2), cex=1.3, x.intersp=0.8)
+dev.off()
+```
+
+
+```{r, fig.height=8, fig.width=8}
+# IFT reconstruction (synthesis) using fMRI-Magnitude and Random-Phase
+set.seed(1234)
+rand_Phase <- runif(length(X2_mag), -pi, pi)
+#  rand_Phase <- runif(1, -pi, pi)
+Real_phaseRand = X2_mag * cos(rand_Phase)
+Imaginary_phaseRand = X2_mag * sin(rand_Phase)
+ift_RandPhase_X2mag = Re(fft(Real_phaseRand + 1i*Imaginary_phaseRand, inverse = T)/length(X2))
+plot(ift_RandPhase_X2mag-mean(ift_RandPhase_X2mag) + mean(y2), col="red", type="l", lty=2, lwd=2, 
+     ylim=c(10300, 10500), main=sprintf('Signal Synthesis: IFT (Magnitude=Real, Phase=Random)\n Correlation(Real, Recon) = %s', format(cor(ift_RandPhase_X2mag, y2), digits=3)))
+lines(x1, y2, col = "black", lwd = 2)  # overlay original data to show Rand-Phase effects on reconstruction
+legend("top", bty="n", legend=c("(raw) fMRI", "Random-Phase Reconstruction"),
+       col=c("black", "red"), lty=c(1,2), lwd=c(2,2), cex=0.9, x.intersp=0.5)
+```
+```{r, fig.height=8, fig.width=8}
+# IFT reconstruction (synthesis) using fMRI-Magnitude and Phase from a different voxel location (28, 22, 10)
+y3 <- fMRIVolume[28, 22, 10, ]
+X3 = fft(y3)  # ;  plot(fftshift1D(log(Re(X3)+2)), main = "log(fftshift1D(Re(FFT(timeseries))))") 
+# X3_mag <- sqrt(Re(X3)^2+Im(X3)^2); plot(log(fftshift1D(Re(X3_mag))), main = "log(Magnitude(FFT(timeseries)))") 
+neighbor_Phase <- atan2(Im(X3), Re(X3)) # ; plot(fftshift1D(X3_phase), main = "Shift(Phase(FFT(timeseries)))")
+
+Real_phaseNeighbor = X2_mag * cos(neighbor_Phase)
+Imaginary_phaseNeighbor = X2_mag * sin(neighbor_Phase)
+ift_NeighborPhase_X2mag = Re(fft(Real_phaseNeighbor + 1i*Imaginary_phaseNeighbor, inverse = T)/length(X2))
+plot(ift_NeighborPhase_X2mag, col="red", type="l", lty=2, lwd=2, 
+     ylim=c(10300, 10500), main=sprintf('Signal Synthesis: IFT (Magnitude=Real(25, 25, 12), Phase=Voxel Neighbor(28, 22, 10))\n Correlation(Real, Recon) = %s', format(cor(ift_NeighborPhase_X2mag, y2), digits=3)))
+lines(x1, y2, col = "black", lwd = 2)  # overlay original data to show Rand-Phase effects on reconstruction
+legend("top", bty="n", legend=c("(raw) fMRI", "Neighbor-Derived-Phase Reconstruction"),
+       col=c("black", "red"), lty=c(1,2), lwd=c(2,2), cex=0.9, x.intersp=0.5)
+
+```
+
+## Figure 5.6
+
+```{r, fig.height=8, fig.width=8}
+# IFT reconstruction (synthesis) using fMRI-Magnitude and Phase from a highly correlated voxel location
+set.seed(1234)
+y4 <- y2 + rnorm(n=length(y2), 0, 40) #; plot(y2, y4); cor(y2, y4)
+X4 = fft(y4)  # ;  plot(fftshift1D(log(Re(X3)+2)), main = "log(fftshift1D(Re(FFT(timeseries))))") 
+# X4_mag <- sqrt(Re(X4)^2+Im(X4)^2); plot(log(fftshift1D(Re(X4_mag))), main = "log(Magnitude(FFT(timeseries)))") 
+corr_Phase <- atan2(Im(X4), Re(X4)) # ; plot(fftshift1D(X4_phase), main = "Shift(Phase(FFT(timeseries)))")
+
+Real_phaseCorr = X2_mag * cos(corr_Phase)
+Imaginary_phaseCorr = X2_mag * sin(corr_Phase)
+ift_CorrPhase_X2mag = Re(fft(Real_phaseCorr + 1i*Imaginary_phaseCorr, inverse = T)/length(X2))
+
+# windows(width=10, height=8)
+#dev.new(height = 10, width = 8) # For Mac OS Users
+
+plot(ift_CorrPhase_X2mag, col="red", type="l", lty=2, lwd=2, 
+     ylim=c(10250, 10510), main=sprintf('Signal Synthesis: IFT (Magnitude=Real, Phase=Highly-Correlated (%s) Voxel\n Correlation(Real, Recon) = %s', format(cor(y4, y2), digits=3),
+                                        format(cor(ift_CorrPhase_X2mag, y2), digits=3)),
+     xlab = "Time", ylab = "IFT(Highly-Corr_Reconstruction)[25, 25, 12, ] Intensities")
+lines(x1, y2, col = "black", lwd = 2)  # overlay original data to show Rand-Phase effects on reconstruction
+legend("top", bty="n", legend=c("(raw) fMRI", "Correlated-Voxel-Phase Reconstruction"),
+       col=c("black", "red"), lty=c(1,2), lwd=c(2,2), cex=1.2, x.intersp=0.8)
+
+
+```
+
+
+```{r, echo = FALSE}
+# Figure 5.6 Output
+png("../Figures/Fig5.6.png",width = 1200,height = 900, res = 100)
+plot(ift_CorrPhase_X2mag, col="red", type="l", lty=2, lwd=2, 
+     ylim=c(10250, 10510), main=sprintf('Signal Synthesis: IFT (Magnitude=Real, Phase=Highly-Correlated (%s) Voxel\n Correlation(Real, Recon) = %s', format(cor(y4, y2), digits=3),
+                                        format(cor(ift_CorrPhase_X2mag, y2), digits=3)),
+     xlab = "Time", ylab = "IFT(Highly-Corr_Reconstruction)[25, 25, 12, ] Intensities")
+lines(x1, y2, col = "black", lwd = 2)  # overlay original data to show Rand-Phase effects on reconstruction
+legend("top", bty="n", legend=c("(raw) fMRI", "Correlated-Voxel-Phase Reconstruction"),
+       col=c("black", "red"), lty=c(1,2), lwd=c(2,2), cex=1.2, x.intersp=0.8)
+dev.off()
+```
+
+
+```{r, fig.height=8, fig.width=8}
+# This is an effective reconstruction (synthesis) of the raw data by approximating the "unknown" phases.
+# The reason why this works is that the real and estimated phases closely resemble each other
+plot(X2_phase, corr_Phase, xlab = "Real Phase", ylab = "Approximate Phase", 
+     main =sprintf('Scatterplot of True (x-axis) and Approximate Phases\n
+     Correlation = %s', format(cor(X2_phase, corr_Phase), digits=3)))
+
+# Similarly, the reconstructed and real signal are highly correlated as the scatterplot shows
+plot(y2, y4, xlab = "Real Signal", ylab = "Reconstructed (using estimated Phases)", 
+     main =sprintf('Scatterplot of True Signal (x-axis) and Approximate-Phase reconstructed Signal\n
+     Correlation = %s', format(cor(y2, y4), digits=3)))
+
+```
+
+These examples demonstrate the timeseries representation and analysis work well in spacetime. However, in various situations where one may or may not be able to observe or estimate the kime-direction (phase) the results can widely vary based on how reasonable to synthesis of information is without explicit knowledge of the phase measures. As an observable, the *time* (kime-order) is measurable and the *phase* angles (kime-direction) can either be estimated from other similar data, provided by an oracle, or fixed according to some experimental conditions.
+
+# Appendix: Functions Used
+
+## fftshift1D()
+```{r}
+# A special case of imlementaiton of `fftshift` for 1D arrays
+#' This function is useful for visualizing the 1D Fourier transform with the zero-frequency 
+#' component in the middle of the spectrum.
+#' 
+#' @param img_ff A Fourier transform of a 1D signal.
+#' @return A properly shifted FT of the 1D array.
+#' 
+fftshift1D <- function(img_ff) {
+  rows <- length(img_ff)   
+  rows_half <- ceiling(rows/2)
+  return(append(img_ff[(rows_half+1):rows], img_ff[1:rows_half]))
+}
+
+```
+
+
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->

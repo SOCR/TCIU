@@ -1,0 +1,810 @@
+---
+title: "Figure 5.7, 5.8 & 5.9"
+subtitle: "[Back To Index](index.html)"
+author: "SOCR Team "
+date: "`r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    theme: spacelab
+    highlight: tango
+    includes:
+      before_body: TCIU_header.html
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warings = FALSE)
+```
+
+
+```{r,eval=TRUE,echo=FALSE,message=F, warning=F}
+# FFT SHIFT
+fftshift <- function(img_ff, dim = -1) {
+
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]
+  # planes <- dim(img_ff)[3]
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- ceiling(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- ceiling(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+  
+  #swap_side2side <- function(img_ff) {
+  #  planes_half <- ceiling(planes/2)
+  #  return(cbind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], img_ff[1:rows, 1:cols, 1:planes_half]))
+  #}
+
+  if (dim == -1) {
+    img_ff <- swap_up_down(img_ff)
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- ceiling(rows/2)
+    cols_half <- ceiling(cols/2)
+    planes_half <- ceiling(planes/2)
+    
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+
+ifftshift <- function(img_ff, dim = -1) {
+
+  rows <- dim(img_ff)[1]    
+  cols <- dim(img_ff)[2]    
+
+  swap_up_down <- function(img_ff) {
+    rows_half <- floor(rows/2)
+    return(rbind(img_ff[((rows_half+1):rows), (1:cols)], img_ff[(1:rows_half), (1:cols)]))
+  }
+
+  swap_left_right <- function(img_ff) {
+    cols_half <- floor(cols/2)
+    return(cbind(img_ff[1:rows, ((cols_half+1):cols)], img_ff[1:rows, 1:cols_half]))
+  }
+
+  if (dim == -1) {
+    img_ff <- swap_left_right(img_ff)
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 1) {
+    return(swap_up_down(img_ff))
+  }
+  else if (dim == 2) {
+    return(swap_left_right(img_ff))
+  }
+  else if (dim == 3) {
+    # Use the `abind` package to bind along any dimension a pair of multi-dimensional arrays
+    # install.packages("abind")
+    library(abind)
+    
+    planes <- dim(img_ff)[3]
+    rows_half <- floor(rows/2)
+    cols_half <- floor(cols/2)
+    planes_half <- floor(planes/2)
+    
+    img_ff <- abind(img_ff[1:rows, 1:cols, ((planes_half+1):planes)], 
+                    img_ff[1:rows, 1:cols, 1:planes_half], along=3)
+    img_ff <- abind(img_ff[1:rows, ((cols_half+1):cols), (1:planes)], 
+                    img_ff[1:rows, 1:cols_half, (1:planes)], along=2)
+    img_ff <- abind(img_ff[((rows_half+1):rows), (1:cols), (1:planes)], 
+                    img_ff[(1:rows_half), (1:cols), (1:planes)], along=1)
+    return(img_ff)
+  }
+  else {
+    stop("Invalid dimension parameter")
+  }
+}
+```
+
+# Exegeneous Feature Time-series analysis
+
+
+```{r message=FALSE,warning=FALSE}
+library(forecast)
+library(glmnet)
+library(arm)
+library(knitr) 
+library(doParallel)
+```
+
+## Figure 5.7
+
+We can use the [UCI ML Air Quality Dataset](https://archive.ics.uci.edu/ml/datasets/Air+quality) to demonstrate the effect of kime-direction on the analysis of the longitudinal data. The *Air Quality data* consists of $9358$ hourly-averaged responses from an array of 5 sensors embedded in an Air Quality Chemical Multisensor Device. These measurements were obtained in a significantly polluted area during a one year period (March 2004 to February 2005). The features include Concentrations for CO, Non Metanic Hydrocarbons, Benzene, Total Nitrogen Oxides (NOx), and Nitrogen Dioxide (NO2). 
+
+The attributes in the CSV file include:
+
+* Date (DD/MM/YYYY)
+* Time (HH.MM.SS)
+* True hourly averaged concentration CO in mg/m^3 (reference analyzer)
+* PT08.S1 (tin oxide) hourly averaged sensor response (nominally CO targeted)
+* True hourly averaged overall Non Metanic Hydro-carbons concentration in microg/m^3 (reference analyzer)
+* True hourly averaged Benzene concentration in microg/m^3 (reference analyzer)
+* PT08.S2 (Titania) hourly averaged sensor response (nominally NMHC targeted)
+* True hourly averaged NOx concentration in ppb (reference analyzer)
+* PT08.S3 (tungsten oxide) hourly averaged sensor response (nominally NOx targeted)
+* True hourly averaged NO2 concentration in microg/m^3 (reference analyzer)
+* PT08.S4 (tungsten oxide) hourly averaged sensor response (nominally NO2 targeted)
+* PT08.S5 (indium oxide) hourly averaged sensor response (nominally O3 targeted)
+* Temperature in ?C
+* Relative Humidity (%)
+* AH Absolute Humidity
+
+```{r}
+aqi_data <- read.csv("https://umich.instructure.com/files/8208336/download?download_frd=1")
+summary(aqi_data)
+
+aqi_data.ts <- ts(aqi_data, start=c(2004,3), freq=24) # hourly sampling rate
+
+# set up training and testing time-periods
+alltrain.ts <- window(aqi_data.ts, end=c(2004,3))
+allvalid.ts <- window(aqi_data.ts, start=c(2005,1))
+
+
+
+
+
+# Estimate the ARIMAX model
+
+fitArimaX <- auto.arima(aqi_data$CO.GT., xreg= aqi_data[ , 
+                                  c("PT08.S1.CO.", "NMHC.GT.", "C6H6.GT.", "PT08.S2.NMHC.",
+                                    "NOx.GT.", "PT08.S3.NOx.", "NO2.GT.", "PT08.S4.NO2.",
+                                    "PT08.S5.O3.", "T", "RH", "AH")] %>% as.matrix()
+                          )
+fitArimaX
+
+# Predict prospective CO concentration
+pred_length <- 24*30 # 1 month forward forecasting
+predArrivals <- predict(fitArimaX, n.ahead = pred_length, 
+                        newxreg = aqi_data[c((9471-pred_length+1):9471), c(4:15)])
+#plot(predArrivals$pred, main="Forward time-series predictions (fitArimaX)")
+plot(forecast(fitArimaX, 
+              xreg = as.matrix( aqi_data[c((9471-pred_length+1):9471), c(4:15)]) ) )
+```
+
+We can first explore the time-course harmonics of the data.
+
+```{r}
+aqi_data[is.na(aqi_data)] <- 0
+y     <- aqi_data$PT08.S1.CO.
+t     <- 1:dim(aqi_data)[1]
+# range <- diff(range(y))
+
+# Compute the spectral decomposition (harmonics)
+ff_harmonics = function(x=NULL, n=NULL, up=10L, plot=TRUE, add=F, main=NULL, ...) {
+  # The discrete Fourier transformation
+  dff = fft(x)
+  # time
+  t = seq(from = 1, to = length(x))
+  
+  # Upsampled time
+  nt = seq(from = 1, to = length(x)+1-1/up, by = 1/up)
+ 
+  #New spectrum
+  ndff = array(data = 0, dim = c(length(nt), 1L))
+  ndff[1] = dff[1] # mean, DC component
+  if(n != 0){
+    ndff[2:(n+1)] = dff[2:(n+1)] # positive frequencies come first
+    ndff[length(ndff):(length(ndff) - n + 1)] = dff[length(x):(length(x) - n + 1)] # negative frequencies
+  }
+  
+  # Invert the FT
+  indff = fft(ndff/length(y), inverse = TRUE)
+  idff = fft(dff/length(y), inverse = TRUE)
+  if(plot){
+    if(!add){
+      plot(x = t, y = x, pch = 16L, xlab = "Time", ylab = "Measurement", 
+          col = rgb(red = 0.5, green = 0.5, blue = 0.5, alpha = 0.5),
+          main = ifelse(is.null(main), paste(n, "harmonics"), main))
+      lines(y = Mod(idff), x = t, col = adjustcolor(1L, alpha = 0.5))
+    }
+    lines(y = Mod(indff), x = nt, ...)
+  }
+  ret = data.frame(time = nt, y = Mod(indff))
+  return(ret)
+}
+
+# Apply ff_harmonics to the timeseries as x, specifying the number of harmonics (n) and 
+#      the upsampling (so we plot points in time beside the original ones)
+result = ff_harmonics(x = y, n = 12L, up = 100L, col = 2L, lwd=3, cex=2)
+```
+
+```{r Figure 5.7B Output, echo=FALSE}
+# Figure 5.7B Output
+png("../Figures/Fig5.7B.png",width = 900,height = 600, res = 100)
+result = ff_harmonics(x = y, n = 12L, up = 100L, col = 2L, lwd=3, cex=2)
+dev.off()
+```
+
+
+
+```{r}
+# We can add the fourth-to-twelveth harmonics and look at their sum (as a series difference, 12-3)
+add4to12_harmonics = ff_harmonics(x = y, n = 12L, up = 10L, col = 2L, plot = FALSE)
+add4to12_harmonics$y <- add4to12_harmonics$y - ff_harmonics(x = y, n = 3L, up = 10L, plot = T, col = 2L, lwd=3)$y
+```
+```{r Figure 5.7A Output, echo=FALSE}
+# Figure 5.7A Output
+png("../Figures/Fig5.7A.png",width = 900,height = 600, res = 100)
+add4to12_harmonics = ff_harmonics(x = y, n = 12L, up = 10L, col = 2L, plot = FALSE)
+add4to12_harmonics$y <- add4to12_harmonics$y - ff_harmonics(x = y, n = 3L, up = 10L, plot = T, col = 2L, lwd=3)$y
+dev.off()
+```
+```{r}
+plot(add4to12_harmonics, pch = 16L, xlab = "Time", ylab = "Measurement", 
+     main = "Sum of all harmonics up to order 12", type = "l", col = 2)
+
+# Harmonics plot of multiple frequencies (waves) in different colors
+colors = rainbow(14, alpha = 0.6)
+# ff_harmonics(x = y, n = 28L, up = 100L, col = colors[1], add=T)
+for(i in 1:14){
+  ad = ifelse(i == 1, FALSE, TRUE)
+  ff_harmonics(x = y, n = i, up = 100L, col = colors[i], add = ad, 
+               lwd= 3, main = "All waves up to 14th harmonic")
+}
+
+```
+
+```{r Figure 5.7C Output, echo=FALSE}
+# Figure 5.7C Output
+png("../Figures/Fig5.7C.png",width = 900,height = 600, res = 100)
+for(i in 1:14){
+  ad = ifelse(i == 1, FALSE, TRUE)
+  ff_harmonics(x = y, n = i, up = 100L, col = colors[i], add = ad, 
+               lwd= 3, main = "All waves up to 14th harmonic")
+}
+dev.off()
+```
+
+## Fig 5.8
+
+There is a key difference between spacekime data analytics and spacetime data modeling and inference. This contrast is based on the fact that in spacetime, statistical results are obtained by aggregating repeated (IID) dataset samples or measuring identical replicate cohorts under identical conditions. In spacekime, reliable inference can be made on a single sample, if the kime direction angles are known. Indeed the latter are generally no observable, however, they can be estimated, inferred, or approximated. As the FT and IFT are linear functionals, addition, averaging and multiplication by constants are preserved by the forward and inverse Fourier transforms. Therefore, if we have a number of phase estimates in k-space, we can aggregate these (e.g., by averaging them) and use the resulting *assemblage phase* to synthesize the data in spacekime. If the composite phases are indeed representative of the process kime orientation, then the reconstructed spacekime inference is expected to be valid even if we used a single sample. In a way, spacekime inference allows a dual representation of the [central limit theorem](http://www.amstat.org/publications/jse/v16n2/dinov.html), which guarantees the convergence of sample averages to their corresponding population mean counterparts.
+
+In light of this *analytics duality*, we can now perform a [traditional ARIMA modeling](http://www.socr.umich.edu/people/dinov/courses/DSPA_notes/18_BigLongitudinalDataAnalysis.html#17_autoregressive_integrated_moving_average_extended_(arimax)_model) of `CO` concentration (*outcome*: `PT08.S1.CO.`) based on several covariates, e.g., *predictors*: `NMHC.GT.`, `C6H6.GT.`, `PT08.S2.NMHC.`, `NOx.GT.`, `PT08.S3.NOx.`, `NO2.GT.`, `PT08.S4.NO2.`, `PT08.S5.O3.`, `T`, `RH`, and `AH`.
+
+```{r}
+dim(aqi_data)
+epochs_aqi_data <- as.matrix(aqi_data[c(1:9000) , -c(1:3, 16:17)])
+is.matrix(epochs_aqi_data); dim(epochs_aqi_data)
+dim(epochs_aqi_data) <- c(9, 1000, 12)
+dim(epochs_aqi_data); identical(epochs_aqi_data[9, 1000, 12], aqi_data[9000, 12+3])
+epochs_aqi_data_1 <- epochs_aqi_data[1, , ]; dim(epochs_aqi_data_1)
+
+# 1D timeseries FFT SHIFT
+fftshift1D <- function(img_ff) {
+  rows <- length(img_ff)   
+  rows_half <- ceiling(rows/2)
+  return(append(img_ff[(rows_half+1):rows], img_ff[1:rows_half]))
+}
+
+# 1. Transform all 9 signals to k-space (Fourier domain)
+x1 <- c(1:1000)
+FT_epochs_aqi_data <- array(complex(), c(9, 1000, 12))
+mag_FT_epochs_aqi_data <- array(complex(), c(9, 1000, 12))
+phase_FT_epochs_aqi_data <- array(complex(), c(9, 1000, 12))
+for (i in 1:9) {
+  FT_epochs_aqi_data[i, , ] <- fft(epochs_aqi_data[i, , ])
+  X2 <- FT_epochs_aqi_data[i, , ]
+  # plot(fftshift1D(log(Re(X2)+2)), main = "log(fftshift1D(Re(FFT(timeseries))))") 
+  mag_FT_epochs_aqi_data[i, , ] <- sqrt(Re(X2)^2+Im(X2)^2); 
+  # plot(log(fftshift1D(Re(X2_mag))), main = "log(Magnitude(FFT(timeseries)))") 
+  phase_FT_epochs_aqi_data[i, , ] <- atan2(Im(X2), Re(X2)); 
+  # plot(fftshift1D(X2_phase), main = "Shift(Phase(FFT(timeseries)))")
+}
+
+### Test the process to confirm calculations
+# X2<-FT_epochs_aqi_data[1,,];X2_mag<-mag_FT_epochs_aqi_data[1,,];X2_phase<-phase_FT_epochs_aqi_data[1,,]
+# Real2 = X2_mag * cos(X2_phase)
+# Imaginary2 = X2_mag * sin(X2_phase)
+# man_hat_X2 = Re(fft(Real2 + 1i*Imaginary2, inverse = T)/length(X2))
+# ifelse(abs(man_hat_X2[5,10] - epochs_aqi_data[1, 5, 10]) < 0.001, "Perfect Syntesis", "Problems!!!")
+#######
+
+# 2. Invert back to spacetime the epochs_aqi_data_1 signal with nil phase
+Real = mag_FT_epochs_aqi_data[1, , ] * cos(0)  # cos(phase_FT_epochs_aqi_data[1, , ])
+Imaginary = mag_FT_epochs_aqi_data[1, , ] * sin(0)   # sin(phase_FT_epochs_aqi_data[1, , ])
+ift_NilPhase_X2mag = Re(fft(Real+1i*Imaginary, inverse = T)/length(FT_epochs_aqi_data[1,,]))
+# display(ift_NilPhase_X2mag, method = "raster")
+# dim(ift_NilPhase_X2mag); View(ift_NilPhase_X2mag); # compare to View(epochs_aqi_data[1, , ])
+
+# 3. Perform ARIMAX modeling of ift_NilPhase_X2mag; report (p,d,q) params and quality metrics AIC/BIC
+
+fitArimaX_nil <- auto.arima(ift_NilPhase_X2mag[ , 1], xreg= ift_NilPhase_X2mag[ , 2:12])
+fitArimaX_nil
+
+# Regression with ARIMA(2,0,1) errors 
+#Coefficients:
+#         ar1      ar2      ma1  intercept    xreg1   xreg2    xreg3   xreg4   xreg5   xreg6   xreg7   xreg8
+#      1.1141  -0.1457  -0.7892   503.3455  -0.4028  0.1366  -0.5146  1.0961  1.2195  1.3063  1.2087  1.1491
+#s.e.  0.2064   0.1571   0.1821    73.4212   0.1087  0.1123   0.1072  0.1059  0.1029  0.1564  0.1023  0.1101
+#        xreg9  xreg10   xreg11
+#      -0.4823  0.0315  -0.4640
+#s.e.   0.1049  0.1125   0.1076
+# sigma^2 estimated as 30448:  log likelihood=-6573.68 AIC=13179.36   AICc=13179.91   BIC=13257.88
+
+# Predict prospective CO concentration
+pred_length <- 24*7 # 1 week forward forecasting
+predArrivals <- predict(fitArimaX_nil, n.ahead = pred_length, newxreg = ift_NilPhase_X2mag[800:1000, 2:12])
+#plot(predArrivals$pred, main="Forward time-series predictions (fitArimaX)")
+plot(forecast(fitArimaX_nil, xreg = ift_NilPhase_X2mag[800:1000, 2:12]), main = "ARIMAX(2,0,1) Model Forecasting (1,001:1,200)", ylim = c(500, 6000))
+lines(c(1001:1200), epochs_aqi_data[2, c(1:200), 1], col = "red", lwd = 2, lty=2)  
+# overlay original data to show Nil-Phase effects on reconstruction
+legend("top", bty="n", legend=c("Prediction via Nil-Phase Reconstruction", "Real Timeseries (CO)"),
+       col=c("blue", "red"), lty=c(1,2), lwd=c(2,2), cex=0.9, x.intersp=0.5)
+
+# 4. Compute the *average phase* across the eight series 2:9
+phase_Avg <- apply(phase_FT_epochs_aqi_data, c(2,3), mean); dim(phase_Avg); phase_Avg[1:5 , 1:5]
+
+# 5. Invert epochs_aqi_data_1 signal to spacetime using average-phase
+Real = mag_FT_epochs_aqi_data[1, , ] * cos(phase_Avg)
+Imaginary = mag_FT_epochs_aqi_data[1, , ] * sin(phase_Avg)
+ift_AvgPhase_X2mag = Re(fft(Real+1i*Imaginary, inverse = T)/length(FT_epochs_aqi_data[1,,]))
+# display(ift_AvgPhase_X2mag, method = "raster")
+# dim(ift_AvgPhase_X2mag); View(ift_AvgPhase_X2mag); # compare to View(epochs_aqi_data[1, , ])
+
+# 6. Perform ARIMAX modeling on ift_AvgPhase_X2mag; report (p, d, q) parameters and quality metrics
+fitArimaX_avg <- auto.arima(ift_AvgPhase_X2mag[ , 1], xreg= ift_NilPhase_X2mag[ , 2:12])
+fitArimaX_avg
+# ARIMA(2,0,3) 
+# Coefficients:
+#         ar1     ar2     ma1      ma2     ma3  intercept   xreg1   xreg2    xreg3   xreg4    xreg5   xreg6
+#      0.3295  0.2384  0.2673  -0.0061  0.1573   742.8001  0.5838  0.2809  -0.6497  1.2399  -0.0261  1.0818
+# s.e.  0.1354  0.1150  0.1363   0.0650  0.0451    97.1676  0.1700  0.1776   0.1468  0.1695   0.1710  0.2394
+#       xreg7   xreg8    xreg9  xreg10   xreg11
+#      0.2540  0.3065  -0.4052  0.3511  -0.4577
+# s.e.  0.1706  0.1665   0.1450  0.1791   0.1709
+# sigma^2 estimated as 82982:  log likelihood=-7073.9  AIC=14183.8   AICc=14184.5   BIC=14272.14
+
+# 7. Perform ARIMAX modeling on epochs_aqi_data[1,,]; report (p,d,q) parameters and quality metrics
+fitArimaX_orig <- auto.arima(epochs_aqi_data[1, , 1], xreg= epochs_aqi_data[1, , 2:12])
+fitArimaX_orig
+# Regression with ARIMA(1,1,4) errors 
+# Coefficients:
+#         ar1      ma1     ma2     ma3      ma4   xreg1   xreg2   xreg3   xreg4    xreg5    xreg6   xreg7
+#      0.2765  -0.8891  0.1268  0.0304  -0.1766  0.0804  6.1495  0.0986  0.0163  -0.0482  -0.0110  0.1833
+#s.e.  0.1294   0.1272  0.0933  0.0450   0.0384  0.0213  1.6611  0.0554  0.0152   0.0207   0.0257  0.0274
+#       xreg8   xreg9  xreg10    xreg11
+#      0.1765  6.5374  1.7939  -12.0697
+#s.e.  0.0118  0.7141  0.2724    1.8905
+# sigma^2 estimated as 2287:  log likelihood=-5273.65   AIC=10581.29   AICc=10581.92   BIC=10664.71
+
+# 8. Compare the analytics results from #3, #6, and #7
+
+# Generate a table with results
+
+### correlations
+cor_orig_obs <- format(cor(forecast(fitArimaX_orig, xreg = epochs_aqi_data[2, c(801:1000), 2:12])$mean, 
+    epochs_aqi_data[2, c(1:200), 1]), digits=3); cor_orig_obs
+cor_orig_nil <- format(cor(forecast(fitArimaX_orig, xreg = epochs_aqi_data[2, c(801:1000), 2:12])$mean, 
+    forecast(fitArimaX_nil, xreg = ift_NilPhase_X2mag[801:1000, 2:12])$mean), digits=3); cor_orig_nil
+cor_orig_avg <- format(cor(forecast(fitArimaX_orig, xreg = epochs_aqi_data[2, c(801:1000), 2:12])$mean, 
+    forecast(fitArimaX_avg, xreg = ift_AvgPhase_X2mag[801:1000, 2:12])$mean), digits=3); cor_orig_avg
+
+### plots
+plot(forecast(fitArimaX_orig, xreg = epochs_aqi_data[1, 800:1000, 2:12]), 
+     main = sprintf("ARIMAX Model Forecasting (1,001:1,200): Corr(TrueObs,Orig)=%s", cor_orig_obs),
+     xlim=c(800, 1200), ylim = c(500, 2000), col="black", lwd = 1, lty=1)
+#lines(c(1001:1200), forecast(fitArimaX_orig, xreg = epochs_aqi_data[2, c(801:1000), 2:12])$mean, 
+#      col = "black", lwd = 1, lty=1)  # Original=True Phase reconstruction
+lines(c(1001:1200), forecast(fitArimaX_nil, xreg = ift_NilPhase_X2mag[801:1000, 2:12])$mean, 
+      col = "purple", lwd = 1, lty=1)
+lines(c(1001:1200), forecast(fitArimaX_avg, xreg = ift_AvgPhase_X2mag[801:1000, 2:12])$mean, 
+      col = "red", lwd = 1, lty=1)
+lines(c(1001:1200), epochs_aqi_data[2, c(1:200), 1], col = "green", lwd = 1, lty=1)  
+legend("topleft", bty="n", legend=c(
+  sprintf("Original (Correct Phases): Corr(Orig, TrueObs)=%s", cor_orig_obs), 
+  sprintf("Prediction via Nil-Phase Reconstruction: Corr(Orig, Nil)=%s", cor_orig_nil), 
+  sprintf("Prediction via Average-Phase Reconstruction: Corr(Orig, Avg)=%s", cor_orig_avg), 
+  sprintf("Real CO Timeseries (Epoch 2)"), 
+  "Orig (True Phase) ARIMA(1,1,4) Model Forecast"), 
+  col=c("black", "purple", "red", "green", "blue"), lty=c(1,1,1,1), lwd=c(2,2,2,2), cex=0.9, 
+  x.intersp=1, text.width=c(0.085,0.235,0.35, 0.3), xjust=0, yjust=0)
+```
+
+```{r Figure 5.8A Output, echo=FALSE}
+# Figure 5.8A Output
+png("../Figures/Fig5.8A.png",width = 1500,height = 900, res = 100)
+plot(forecast(fitArimaX_orig, xreg = epochs_aqi_data[1, 800:1000, 2:12]), 
+     main = sprintf("ARIMAX Model Forecasting (1,001:1,200): Corr(TrueObs,Orig)=%s", cor_orig_obs),
+     xlim=c(800, 1200), ylim = c(500, 2000), col="black", lwd = 1, lty=1)
+#lines(c(1001:1200), forecast(fitArimaX_orig, xreg = epochs_aqi_data[2, c(801:1000), 2:12])$mean, 
+#      col = "black", lwd = 1, lty=1)  # Original=True Phase reconstruction
+lines(c(1001:1200), forecast(fitArimaX_nil, xreg = ift_NilPhase_X2mag[801:1000, 2:12])$mean, 
+      col = "purple", lwd = 1, lty=1)
+lines(c(1001:1200), forecast(fitArimaX_avg, xreg = ift_AvgPhase_X2mag[801:1000, 2:12])$mean, 
+      col = "red", lwd = 1, lty=1)
+lines(c(1001:1200), epochs_aqi_data[2, c(1:200), 1], col = "green", lwd = 1, lty=1)  
+legend("topleft", bty="n", legend=c(
+  sprintf("Original (Correct Phases): Corr(Orig, TrueObs)=%s", cor_orig_obs), 
+  sprintf("Prediction via Nil-Phase Reconstruction: Corr(Orig, Nil)=%s", cor_orig_nil), 
+  sprintf("Prediction via Average-Phase Reconstruction: Corr(Orig, Avg)=%s", cor_orig_avg), 
+  sprintf("Real CO Timeseries (Epoch 2)"), 
+  "Orig (True Phase) ARIMA(1,1,4) Model Forecast"), 
+  col=c("black", "purple", "red", "green", "blue"), lty=c(1,1,1,1), lwd=c(2,2,2,2), cex=0.9, 
+  x.intersp=1, text.width=c(0.085,0.235,0.35, 0.3), xjust=0, yjust=0)
+dev.off()
+```
+
+
+```{r}
+#### Zoom in
+plot(forecast(fitArimaX_orig, xreg = epochs_aqi_data[1, 800:1000, 2:12]), 
+     main = sprintf("ARIMAX Model Forecasting (1,001:1,200): Corr(TrueObs,Orig)=%s", cor_orig_obs),
+     xlim=c(950, 1050), ylim = c(500, 2000), col="black", lwd = 1, lty=1)
+#lines(c(1001:1200), forecast(fitArimaX_orig, xreg = epochs_aqi_data[2, c(801:1000), 2:12])$mean, 
+#      col = "black", lwd = 1, lty=1)  # Original=True Phase reconstruction
+lines(c(1001:1200), forecast(fitArimaX_nil, xreg = ift_NilPhase_X2mag[801:1000, 2:12])$mean, 
+      col = "purple", lwd = 1, lty=1)
+lines(c(1001:1200), forecast(fitArimaX_avg, xreg = ift_AvgPhase_X2mag[801:1000, 2:12])$mean, 
+      col = "red", lwd = 1, lty=1)
+lines(c(1001:1200), epochs_aqi_data[2, c(1:200), 1], col = "green", lwd = 1, lty=1)  
+legend("topleft", bty="n", legend=c(
+  sprintf("Original (Correct Phases): Corr(Orig, TrueObs)=%s", cor_orig_obs), 
+  sprintf("Prediction via Nil-Phase Reconstruction: Corr(Orig, Nil)=%s", cor_orig_nil), 
+  sprintf("Prediction via Average-Phase Reconstruction: Corr(Orig, Avg)=%s", cor_orig_avg), 
+  sprintf("Real CO Timeseries (Epoch 2)"), 
+  "Orig (True Phase) ARIMA(1,1,4) Model Forecast"), 
+  col=c("black", "purple", "red", "green", "blue"), lty=c(1,1,1,1), lwd=c(2,2,2,2), cex=0.9, 
+  x.intersp=1, text.width=c(0.085,0.235,0.35, 0.3), xjust=0, yjust=0)
+```
+
+```{r Figure 5.8B Output, echo=FALSE}
+# Figure 5.8B Output
+png("../Figures/Fig5.8B.png",width = 1500,height = 900, res = 100)
+plot(forecast(fitArimaX_orig, xreg = epochs_aqi_data[1, 800:1000, 2:12]), 
+     main = sprintf("ARIMAX Model Forecasting (1,001:1,200): Corr(TrueObs,Orig)=%s", cor_orig_obs),
+     xlim=c(950, 1050), ylim = c(500, 2000), col="black", lwd = 1, lty=1)
+#lines(c(1001:1200), forecast(fitArimaX_orig, xreg = epochs_aqi_data[2, c(801:1000), 2:12])$mean, 
+#      col = "black", lwd = 1, lty=1)  # Original=True Phase reconstruction
+lines(c(1001:1200), forecast(fitArimaX_nil, xreg = ift_NilPhase_X2mag[801:1000, 2:12])$mean, 
+      col = "purple", lwd = 1, lty=1)
+lines(c(1001:1200), forecast(fitArimaX_avg, xreg = ift_AvgPhase_X2mag[801:1000, 2:12])$mean, 
+      col = "red", lwd = 1, lty=1)
+lines(c(1001:1200), epochs_aqi_data[2, c(1:200), 1], col = "green", lwd = 1, lty=1)  
+legend("topleft", bty="n", legend=c(
+  sprintf("Original (Correct Phases): Corr(Orig, TrueObs)=%s", cor_orig_obs), 
+  sprintf("Prediction via Nil-Phase Reconstruction: Corr(Orig, Nil)=%s", cor_orig_nil), 
+  sprintf("Prediction via Average-Phase Reconstruction: Corr(Orig, Avg)=%s", cor_orig_avg), 
+  sprintf("Real CO Timeseries (Epoch 2)"), 
+  "Orig (True Phase) ARIMA(1,1,4) Model Forecast"), 
+  col=c("black", "purple", "red", "green", "blue"), lty=c(1,1,1,1), lwd=c(2,2,2,2), cex=0.9, 
+  x.intersp=1, text.width=c(0.085,0.235,0.35, 0.3), xjust=0, yjust=0)
+dev.off()
+```
+
+## Fig 5.9
+
+An alternative data analytic approach involves using the Fourier transform applied to the complete 2D data-matrix (rows=time, columns=features), inverting it back in spacetime, and investigating the effect of the timeseries analysis *with* and *without* using the correct kime-directions (phases). Knowing the kime-directions is expected to produce better analytical results (e.g., lower bias and lower dispersion).
+
+```{r}
+dim(aqi_data)
+
+# 1. Transform the 2D matrix to k-space (Fourier domain)
+aqi_data1 <- aqi_data[ , 3:15]   # remove string columns
+aqi_data_complete <- as.matrix(aqi_data1[complete.cases(aqi_data1), ])
+dim(aqi_data_complete)    # ; display(aqi_data_complete, method = "raster") 
+FT_aqi_data <- fft(aqi_data_complete)
+X2 <- FT_aqi_data  # display(FT_aqi_data, method = "raster") 
+mag_FT_aqi_data <- sqrt(Re(X2)^2+Im(X2)^2) 
+  # plot(log(fftshift1D(Re(X2_mag))), main = "log(Magnitude(FFT(timeseries)))") 
+phase_FT_aqi_data <- atan2(Im(X2), Re(X2)) 
+
+### Test the process to confirm calculations
+# X2<-FT_aqi_data; X2_mag <- mag_FT_aqi_data; X2_phase<-phase_FT_aqi_data
+# Real2 = X2_mag * cos(X2_phase)
+# Imaginary2 = X2_mag * sin(X2_phase)
+# man_hat_X2 = Re(fft(Real2 + 1i*Imaginary2, inverse = T)/length(X2))
+# ifelse(abs(man_hat_X2[5,10] - aqi_data1[5, 10]) < 0.001, "Perfect Syntesis", "Problems!!!")
+#######
+
+# 2. Invert back to spacetime the epochs_aqi_data_1 signal with nil phase
+Real = mag_FT_aqi_data * cos(0)  # cos(phase_FT_aqi_data)
+Imaginary = mag_FT_aqi_data * sin(0)   # sin(phase_FT_aqi_data)
+ift_NilPhase_X2mag = Re(fft(Real+1i*Imaginary, inverse = T)/length(FT_aqi_data))
+# display(ift_NilPhase_X2mag, method = "raster")
+# dim(ift_NilPhase_X2mag); View(ift_NilPhase_X2mag); # compare to View(aqi_data1)
+summary(aqi_data_complete); summary(ift_NilPhase_X2mag, method = "raster")
+
+# 3. Perform 2D modeling of ift_NilPhase_X2mag, e.g., 
+###   LASSO "CO.GT." ~ "PT08.S1.CO."+"NMHC.GT."+"C6H6.GT."+"PT08.S2.NMHC."+"NOx.GT."+"PT08.S3.NOx."+ "NO2.GT."+"PT08.S4.NO2."+"PT08.S5.O3."+"T"+"RH"+"AH"
+
+
+y <- ift_NilPhase_X2mag[ , 1]      # CO as outcome variable
+X <- ift_NilPhase_X2mag[ , 2:13]   # remaining features are predictors
+
+set.seed(1234)
+train = sample(1 : nrow(X), round((4/5) * nrow(X)))
+test = -train
+
+# subset training data
+yTrain = y[train]
+XTrain = X[train, ]
+# subset test data
+yTest = y[test]
+XTest = X[test, ]
+
+#### Model Estimation & Selection ####
+# Estimate models: glmnet automatically standardizes the predictors
+fitRidge = glmnet(XTrain, yTrain, alpha = 0)  # Ridge Regression
+fitLASSO = glmnet(XTrain, yTrain, alpha = 1)  # The LASSO
+
+### Plot Solution Path #### LASSO
+plot(fitLASSO, xvar="lambda", label="TRUE")  # add label to upper x-axis
+mtext("(Nil-Phase) LASSO regularizer: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+```
+
+```{r Figure 5.9A1 Output, echo=FALSE}
+# Figure 5.9A1 Output
+png("../Figures/Fig5.9A1.png",width = 600,height = 400, res = 100)
+plot(fitLASSO, xvar="lambda", label="TRUE")  # add label to upper x-axis
+mtext("(Nil-Phase) LASSO regularizer: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+dev.off()
+```
+
+
+```{r}
+### Plot Solution Path #### Ridge
+plot(fitRidge, xvar="lambda", label="TRUE") # add label to upper x-axis
+mtext("(Nil-Phase) Ridge regularizer: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+```
+
+
+
+```{r}
+#### 10-fold cross validation ##### LASSO
+
+registerDoParallel(6)
+set.seed(1234)  # set seed 
+cvLASSO = cv.glmnet(XTrain, yTrain, alpha = 1, parallel=TRUE) # (10-fold) cross validation for the LASSO
+plot(cvLASSO)
+mtext("(Nil-Phase) CV LASSO: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+```
+
+
+```{r Figure 5.9A2 Output, echo=FALSE}
+# Figure 5.9A2 Output
+png("../Figures/Fig5.9A2.png",width = 600,height = 400, res = 100)
+plot(cvLASSO)
+mtext("(Nil-Phase) CV LASSO: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+dev.off()
+```
+
+```{r}
+### Predict and Report LASSO MSE 
+predLASSO <-  predict(cvLASSO, s = cvLASSO$lambda.1se, newx = XTest)
+testMSE_LASSO <- mean((predLASSO - yTest)^2); testMSE_LASSO
+
+# LASSO coefficient estimates 
+betaHatLASSO = as.double(coef(fitLASSO, s = cvLASSO$lambda.1se))  # s is lambda
+coefplot(betaHatLASSO[2:12], sd = rep(0, 11), pch=1, col.pts = "red", cex.pts = 2)
+legend("bottomright", "(Nil-Phase) LASSO", col = "blue", bty = "o", cex = 1)
+```
+
+```{r Figure 5.9A3 Output, echo=FALSE}
+# Figure 5.9A3 Output
+png("../Figures/Fig5.9A3.png",width = 600,height = 400, res = 100)
+coefplot(betaHatLASSO[2:12], sd = rep(0, 11), pch=1, col.pts = "red", cex.pts = 2)
+legend("bottomright", "(Nil-Phase) LASSO", col = "blue", bty = "o", cex = 1)
+dev.off()
+```
+
+
+```{r}
+# 4. Perform LASSO modeling on ift_TruePhase_X2mag 
+X2<-FT_aqi_data; X2_mag <- mag_FT_aqi_data; X2_phase<-phase_FT_aqi_data
+Real2 = X2_mag * cos(X2_phase)
+Imaginary2 = X2_mag * sin(X2_phase)
+man_hat_X2 = Re(fft(Real2 + 1i*Imaginary2, inverse = T)/length(X2))
+
+y3 <- man_hat_X2[ , 1]      # CO as outcome variable
+X3 <- man_hat_X2[ , 2:13]   # remaining features are predictors
+
+# subset training data
+y3Train = y3[train]
+X3Train = X3[train, ]
+# subset test data
+y3Test = y3[test]
+X3Test = X3[test, ]
+
+#### Model Estimation & Selection ####
+# Estimate models: glmnet automatically standardizes the predictors
+fitRidge3 = glmnet(X3Train, y3Train, alpha = 0)  # Ridge Regression
+fitLASSO3 = glmnet(X3Train, y3Train, alpha = 1)  # The LASSO
+
+```
+
+```{r Figure 5.9}
+### Plot Solution Path #### LASSO
+plot(fitLASSO3, xvar="lambda", label="TRUE")  # add label to upper x-axis
+mtext("(True-Phase) LASSO regularizer: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+```
+
+```{r Figure 5.9B1 Output, echo=FALSE}
+# Figure 5.9B1 Output
+png("../Figures/Fig5.9B1.png",width = 600,height = 400, res = 100)
+plot(fitLASSO3, xvar="lambda", label="TRUE")  # add label to upper x-axis
+mtext("(True-Phase) LASSO regularizer: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+dev.off()
+```
+
+
+```{r}
+### Plot Solution Path #### Ridge
+plot(fitRidge3, xvar="lambda", label="TRUE") # add label to upper x-axis
+mtext("(True-Phase) Ridge regularizer: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+
+#### 10-fold cross validation ##### LASSO
+
+registerDoParallel(6)
+set.seed(1234)  # set seed 
+cvLASSO3 = cv.glmnet(X3Train, y3Train, alpha = 1, parallel=TRUE) # (10-fold) cross validation for the LASSO
+plot(cvLASSO3) 
+mtext("(True-Phase) CV LASSO: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+```
+
+```{r Figure 5.9B2 Output, echo=FALSE}
+# Figure 5.9B2 Output
+png("../Figures/Fig5.9B2.png",width = 600,height = 400, res = 100)
+plot(cvLASSO3) 
+mtext("(True-Phase) CV LASSO: Number of Nonzero (Active) Coefficients", side=3, line=2.5)
+dev.off()
+```
+
+```{r}
+### Predict and Report LASSO MSE 
+predLASSO3 <-  predict(cvLASSO3, s = cvLASSO3$lambda.1se, newx = X3Test)
+testMSE_LASSO3 <- mean((predLASSO3 - y3Test)^2); testMSE_LASSO3
+
+# LASSO coefficient estimates 
+betaHatLASSO3 = as.double(coef(fitLASSO3, s = cvLASSO3$lambda.1se))  # s is lambda
+coefplot(betaHatLASSO3[2:12], sd = rep(0, 11), pch=1, col.pts = "red", cex.pts = 2)
+legend("bottomright", "(True-Phase)LASSO", col = "blue", bty = "o", cex = 1.5)
+```
+
+```{r Figure 5.9B3 Output, echo=FALSE}
+# Figure 5.9B3 Output
+png("../Figures/Fig5.9B3.png",width = 600,height = 400, res = 100)
+coefplot(betaHatLASSO3[2:12], sd = rep(0, 11), pch=1, col.pts = "red", cex.pts = 2)
+legend("bottomright", "(True-Phase)LASSO", col = "blue", bty = "o", cex = 1.5)
+dev.off()
+```
+
+
+```{r}
+# 5. Compare the analytics results from #3, #6, and #7
+
+# Stop local cluster
+stopImplicitCluster()
+```
+
+# Appendix: Functions Used
+
+## ff_harmonics()
+```{r, echo=TRUE}
+# Compute the spectral decomposition of an array (harmonics)
+#' This function computes the FT of the singlal and plots the first few harmonics
+#' 
+#' @param x Original signal (1D, 2D, or 3D array).
+#' @param n Number of first harmonics to report (integer).
+#' @param up Upsamping rate (default=10).
+#' @param plot Boolean indicating whether to print the harmonics plot(default==TRUE).
+#' @param add whether to overplot the harmonics on an existing graph (default=FALSE), 
+#' @param main Title for the plot.
+#' @return A plot and a dataframe with the sampled harmonics and their corresponding FT magnitudes/amplitudes.
+#'
+ff_harmonics = function(x=NULL, n=NULL, up=10L, plot=TRUE, add=F, main=NULL, ...) {
+  # The discrete Fourier transformation
+  dff = fft(x)
+  # time
+  t = seq(from = 1, to = length(x))
+  
+  # Upsampled time
+  nt = seq(from = 1, to = length(x)+1-1/up, by = 1/up)
+ 
+  #New spectrum
+  ndff = array(data = 0, dim = c(length(nt), 1L))
+  ndff[1] = dff[1] # mean, DC component
+  if(n != 0){
+    ndff[2:(n+1)] = dff[2:(n+1)] # positive frequencies come first
+    ndff[length(ndff):(length(ndff) - n + 1)] = dff[length(x):(length(x) - n + 1)] # negative frequencies
+  }
+  
+  # Invert the FT
+  indff = fft(ndff/length(y), inverse = TRUE)
+  idff = fft(dff/length(y), inverse = TRUE)
+  if(plot){
+    if(!add){
+      plot(x = t, y = x, pch = 16L, xlab = "Time", ylab = "Measurement", 
+          col = rgb(red = 0.5, green = 0.5, blue = 0.5, alpha = 0.5),
+          main = ifelse(is.null(main), paste(n, "harmonics"), main))
+      lines(y = Mod(idff), x = t, col = adjustcolor(1L, alpha = 0.5))
+    }
+    lines(y = Mod(indff), x = nt, ...)
+  }
+  ret = data.frame(time = nt, y = Mod(indff))
+  return(ret)
+}
+
+```
+
+## fftshift1D()
+```{r}
+# A special case of imlementaiton of `fftshift` for 1D arrays
+#' This function is useful for visualizing the 1D Fourier transform with the zero-frequency 
+#' component in the middle of the spectrum.
+#' 
+#' @param img_ff A Fourier transform of a 1D signal.
+#' @return A properly shifted FT of the 1D array.
+#' 
+fftshift1D <- function(img_ff) {
+  rows <- length(img_ff)   
+  rows_half <- ceiling(rows/2)
+  return(append(img_ff[(rows_half+1):rows], img_ff[1:rows_half]))
+}
+
+```
+
+<!--html_preserve-->
+<div>
+    	<footer><center>
+			<a href="http://www.socr.umich.edu/">SOCR Resource</a>
+				Visitor number <img src="http://counter.digits.net/?counter=SOCR"
+	 			align="middle" border="0" height="20" hspace="4" vspace="2" width="60">
+				<script type="text/javascript">
+					var d = new Date();
+					document.write(" | " + d.getFullYear() + " | ");
+				</script> 
+				<a href="http://socr.umich.edu/img/SOCR_Email.png"><img alt="SOCR Email"
+	 			title="SOCR Email" src="http://socr.umich.edu/img/SOCR_Email.png"
+	 			style="border: 0px solid ;"></a>
+	 		 </center>
+	 	</footer>
+
+	<!-- Start of StatCounter Code -->
+		<script type="text/javascript">
+			var sc_project=5714596; 
+			var sc_invisible=1; 
+			var sc_partition=71; 
+			var sc_click_stat=1; 
+			var sc_security="038e9ac4"; 
+		</script>
+		
+		<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js"></script>
+	<!-- End of StatCounter Code -->
+	
+	<!-- GoogleAnalytics -->
+		<script src="https://www.google-analytics.com/urchin.js" type="text/javascript"> </script>
+		<script type="text/javascript"> _uacct = "UA-676559-1"; urchinTracker(); </script>
+	<!-- End of GoogleAnalytics Code -->
+</div>
+<!--/html_preserve-->
