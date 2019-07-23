@@ -27,10 +27,15 @@ vignette: >
 ---
 
 # TSplotly R Package Installation
-N.B.: Please download ONLY the [Windows binary](https://github.com/SOCR/CBDA/releases/download/1.0.0/CBDA_1.0.0.zip) or [source](https://github.com/SOCR/CBDA/releases/download/1.0.0/CBDA_1.0.0.tar.gz) files from our [Github repository](https://github.com/SOCR/CBDA/releases/tag/1.0.0) and install it (either in R or R-RStudio) for testing.
+N.B.: Please download the [source](https://github.com/QJoshua/TSplotly/blob/master/TSplotly_1.1.0.tar.gz) files from our [Github repository](https://github.com/QJoshua/TSplotly) and install it (either in R or R-RStudio) for testing.
+You could also find the same [source](https://github.com/SOCR/TCIU/raw/master/TSplotly/TSplotly_1.1.0.tar.gz) at the Github page of project [TCIU](https://github.com/SOCR/TCIU) of [SOCR team](http://socr.umich.edu/people/).
 
 ```{r Installation of the CBDA package, eval = FALSE}
 # Installation from the Windows binary (recommended for Windows systems)
+## Set the directory to the working space contains "TSplotly_1.1.0.tar.gz"
+library(devtools)
+install("TSplotly",build_vignettes = TRUE)
+## Or you can use the command line to achieve this
 ## Set the directory to the working space contains "TSplotly_1.1.0.tar.gz"
 system("R CMD INSTALL TSplotly")
 # Installation from the source (recommended for Macs and Linux systems)
@@ -111,7 +116,7 @@ TSplot(48,modArima,X_new,title_size = 8,ts_original = "Original time series",
 ts_forecast = "Predicted time series")
 ```
 
-This example is based on [TCIU Figure 1.6 of Chapter 1](http://www.socr.umich.edu/TCIU/Fig1.8_9_11_12.html). 48 periods of training time series data has been chosen so that the time is 4 years from 2015 to 2019.
+This example is based on [TCIU Figure 1.6 of Chapter 1](http://www.socr.umich.edu/TCIU). 48 periods of training time series data has been chosen so that the time is 4 years from 2015 to 2019.
 
 ## Function **TSplot_gen**
 
@@ -171,7 +176,7 @@ plot_labels = time_label)
 
 ### Example two
 
-A huge advantage of applying \code{TSplot_gen} function is that it can directly adding new time lines to the plot without calling another function \code{ADDline}.Here anothe plot of [TCIU Figure 1.6 of Chapter 1](http://www.socr.umich.edu/TCIU/Fig1.8_9_11_12.html) will be shown as an example:
+A huge advantage of applying \code{TSplot_gen} function is that it can directly adding new time lines to the plot without calling another function \code{ADDline}.Here anothe plot of [TCIU Figure 1.6 of Chapter 1](http://www.socr.umich.edu/TCIU) will be shown as an example:
 
 ```{r,warning=FALSE,message=FALSE}
 # Step 1: creating the base plot
@@ -278,7 +283,9 @@ Apply \code{plotly} package to create interactive plot
 ```{r,warning=FALSE,message=FALSE}
 #Create an interactive list
 updatemenus <- list(
-  list(
+  list(    
+    xanchor="left",
+    yanchor="top",
     active = -1,
     type= 'buttons',
     buttons = list(
@@ -339,7 +346,7 @@ plot_ly(type="scatter",mode="lines")%>%
   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$HOM,name="HOM",line=list(color="purple"))%>%
   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$CAR,name="CAR",line=list(color="pink"))%>%
   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$AGE,name="AGE",line=list(color="brown"))%>%
-  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$EDUC,name="EDUC",line=list(color="powderblue"))%>%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$EDUC,name="EDUC",line=list(color="black"))%>%
   layout(title= list(text="Time series for 8 indexes",font=list(family = "Times New Roman",size = 16,color = "black" )),
            paper_bgcolor='rgb(255,255,255)', plot_bgcolor='rgb(229,229,229)',
            xaxis = list(title ="Time (monthly)",

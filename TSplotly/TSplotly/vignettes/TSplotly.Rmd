@@ -116,7 +116,7 @@ TSplot(48,modArima,X_new,title_size = 8,ts_original = "Original time series",
 ts_forecast = "Predicted time series")
 ```
 
-This example is based on [TCIU Figure 1.6 of Chapter 1](http://www.socr.umich.edu/TCIU/Fig1.8_9_11_12.html). 48 periods of training time series data has been chosen so that the time is 4 years from 2015 to 2019.
+This example is based on [TCIU Figure 1.6 of Chapter 1](http://www.socr.umich.edu/TCIU). 48 periods of training time series data has been chosen so that the time is 4 years from 2015 to 2019.
 
 ## Function **TSplot_gen**
 
@@ -176,7 +176,7 @@ plot_labels = time_label)
 
 ### Example two
 
-A huge advantage of applying \code{TSplot_gen} function is that it can directly adding new time lines to the plot without calling another function \code{ADDline}.Here anothe plot of [TCIU Figure 1.6 of Chapter 1](http://www.socr.umich.edu/TCIU/Fig1.8_9_11_12.html) will be shown as an example:
+A huge advantage of applying \code{TSplot_gen} function is that it can directly adding new time lines to the plot without calling another function \code{ADDline}.Here anothe plot of [TCIU Figure 1.6 of Chapter 1](http://www.socr.umich.edu/TCIU) will be shown as an example:
 
 ```{r,warning=FALSE,message=FALSE}
 # Step 1: creating the base plot

@@ -40,8 +40,8 @@ require(zoo)
 require(plotly)
 
 #Firstly create a base plotly plot
-Tempplot<-TSplot(48,modArima_train,as.matrix(X_test),title_size = 8,ts_original = "Original time series",
-ts_forecast = "Predicted time series")
+Tempplot<-TSplot(48,modArima_train,as.matrix(X_test),title_size = 8,
+ts_original = "Original time series",ts_forecast = "Predicted time series")
 
 # Generate a new line with ADDline function
 newline<-ADDline(TS = MCSI_Data_monthAvg_ts_Y_test,linetype = "TS",Name = "Original Result")

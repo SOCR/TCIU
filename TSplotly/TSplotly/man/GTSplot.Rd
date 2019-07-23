@@ -39,14 +39,15 @@ require(forecast)
 require(dcemriS4)
 require(plotly)
 
-## In the "fMRI" chapter, we have a 4-dimension dataset with x,y,z and time dimension (dataset "fMRIVolume").
+## In the "fMRI" chapter, we have a 4-dimension dataset
+## with x,y,z and time dimension (dataset "fMRIVolume").
 ## So we can settle x,y,and z to determine a vector of time series data.
 
-# You could find the raw "fMRIVolume" dataset on the SOCR website
-fMRIURL <- "http://socr.umich.edu/HTML5/BrainViewer/data/fMRI_FilteredData_4D.nii.gz"
-fMRIFile <- file.path(tempdir(), "fMRI_FilteredData_4D.nii.gz")
-download.file(fMRIURL, dest=fMRIFile, quiet=TRUE)
-(fMRIVolume <- readNIfTI(fMRIFile, reorient=FALSE))
+## You could find the raw "fMRIVolume" dataset on the SOCR website
+# fMRIURL <- "http://socr.umich.edu/HTML5/BrainViewer/data/fMRI_FilteredData_4D.nii.gz"
+# fMRIFile <- file.path(tempdir(), "fMRI_FilteredData_4D.nii.gz")
+# download.file(fMRIURL, dest=fMRIFile, quiet=TRUE)
+# (fMRIVolume <- readNIfTI(fMRIFile, reorient=FALSE))
 
 
 # Load three time series data(with a wrong format)
@@ -64,7 +65,8 @@ TS3<-ts(xC_fMRI_1D_x40_y40_z12,start=0,frequency =1/3)
 TSDF<-data.frame(TS1,TS2,TS3)
 
 # Using this function to create plot
-GTSplot(TSDF,Xlab="Time(second)",Unit="sec",ts_name=c("xA_fMRI_1D_x20_y20_z11","xB_fMRI_1D_x30_y30_z13","xC_fMRI_1D_x40_y40_z12"),
+GTSplot(TSDF,Xlab="Time(second)",Unit="sec",ts_name=c("xA_fMRI_1D_x20_y20_z11",
+"xB_fMRI_1D_x30_y30_z13","xC_fMRI_1D_x40_y40_z12"),
               COLO=c("green","red","blue"))
 }
 \author{

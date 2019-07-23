@@ -48,7 +48,8 @@ ggplot(MCSI_Data_monthAvg_melt[MCSI_Data_monthAvg_melt$series!="INCOME", ],
         text = element_text(size=20))+ theme(legend.position="top")
 
 # Change the dataset with our function
-PYdf<-GtoP_trans(MCSI_Data_monthAvg_melt[MCSI_Data_monthAvg_melt$series!="INCOME", ],NAME="series",X="YYYYMM",Y="value")
+PYdf<-GtoP_trans(MCSI_Data_monthAvg_melt[MCSI_Data_monthAvg_melt$series!="INCOME", ],
+NAME="series",X="YYYYMM",Y="value")
 PYdf$INCOME<-NULL
 head(PYdf)
 
@@ -58,15 +59,24 @@ PYdf<-log10(PYdf)
 # Generate a plot_ly result
 ## Note that we've done a log transformation on y-axis
 plot_ly(type="scatter",mode="lines")\%>\%
-  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$ICS,name="ICS",line=list(color="powderblue"))\%>\%
-  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$ICC,name="ICC",line=list(color="red"))\%>\%
-  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$GOVT,name="GOVT",line=list(color="green"))\%>\%
-  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$DUR,name="DUR",line=list(color="orange"))\%>\%
-  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$HOM,name="HOM",line=list(color="purple"))\%>\%
-  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$CAR,name="CAR",line=list(color="pink"))\%>\%
-  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$AGE,name="AGE",line=list(color="brown"))\%>\%
-  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$EDUC,name="EDUC",line=list(color="black"))\%>\%
-  layout(title= list(text="Time series for 8 indexes",font=list(family = "Times New Roman",size = 16,color = "black" )),
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+  y=PYdf$ICS,name="ICS",line=list(color="powderblue"))\%>\%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+  y=PYdf$ICC,name="ICC",line=list(color="red"))\%>\%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+  y=PYdf$GOVT,name="GOVT",line=list(color="green"))\%>\%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+  y=PYdf$DUR,name="DUR",line=list(color="orange"))\%>\%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+  y=PYdf$HOM,name="HOM",line=list(color="purple"))\%>\%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+  y=PYdf$CAR,name="CAR",line=list(color="pink"))\%>\%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+  y=PYdf$AGE,name="AGE",line=list(color="brown"))\%>\%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+  y=PYdf$EDUC,name="EDUC",line=list(color="black"))\%>\%
+  layout(title= list(text="Time series for 8 indexes",
+  font=list(family = "Times New Roman",size = 16,color = "black" )),
          paper_bgcolor='rgb(255,255,255)', plot_bgcolor='rgb(229,229,229)',
          xaxis = list(title ="Time (monthly)",
                       gridcolor = 'rgb(255,255,255)',

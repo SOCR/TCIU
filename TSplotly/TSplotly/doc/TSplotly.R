@@ -1,6 +1,10 @@
 ## ----Installation of the CBDA package, eval = FALSE----------------------
 #  # Installation from the Windows binary (recommended for Windows systems)
 #  ## Set the directory to the working space contains "TSplotly_1.1.0.tar.gz"
+#  library(devtools)
+#  install("TSplotly",build_vignettes = TRUE)
+#  ## Or you can use the command line to achieve this
+#  ## Set the directory to the working space contains "TSplotly_1.1.0.tar.gz"
 #  system("R CMD INSTALL TSplotly")
 #  # Installation from the source (recommended for Macs and Linux systems)
 #  install.packages("~/TSplotly_1.1.0.tar.gz", repos = NULL, type = "source")
@@ -103,7 +107,9 @@ PYdf<-log10(PYdf)
 ## ----warning=FALSE,message=FALSE-----------------------------------------
 #Create an interactive list
 updatemenus <- list(
-  list(
+  list(    
+    xanchor="left",
+    yanchor="top",
     active = -1,
     type= 'buttons',
     buttons = list(
@@ -164,7 +170,7 @@ plot_ly(type="scatter",mode="lines")%>%
   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$HOM,name="HOM",line=list(color="purple"))%>%
   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$CAR,name="CAR",line=list(color="pink"))%>%
   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$AGE,name="AGE",line=list(color="brown"))%>%
-  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$EDUC,name="EDUC",line=list(color="powderblue"))%>%
+  add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),y=PYdf$EDUC,name="EDUC",line=list(color="black"))%>%
   layout(title= list(text="Time series for 8 indexes",font=list(family = "Times New Roman",size = 16,color = "black" )),
            paper_bgcolor='rgb(255,255,255)', plot_bgcolor='rgb(229,229,229)',
            xaxis = list(title ="Time (monthly)",

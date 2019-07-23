@@ -36,6 +36,9 @@
 #' @author SOCR team <\url{http://socr.umich.edu/people/}>
 #' @export
 #'
+#' @import forecast zoo plotly
+#' @importFrom stats time
+#'
 #' @examples
 #' # Creating time labels
 #' require(zoo)
