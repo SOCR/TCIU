@@ -41,3 +41,4 @@ References
 ==========
 
 * [TCIU Website](http://tciu.predictive.space/).
+* [TSPlotly package on CRAN](https://cran.r-project.org/web/packages/TSplotly/index.html).
