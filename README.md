@@ -40,6 +40,7 @@ This work is supported in part by NIH grants [P20 NR015331](www.socr.umich.edu/C
 References
 ==========
 
+* Dinov, ID and Velev, MV (2021) [Data Science: Time Complexity, Inferential Uncertainty, and Spacekime Analytics](https://www.degruyter.com/view/title/576646), De Gruyter STEM Series, Berlin/Boston, ISBN 9783110697803 / 3110697807. 
 * [TCIU Website](https://tciu.predictive.space/).
 * [Spacekime](https://Spacekime.org).
 * [TSPlotly package on CRAN](https://cran.r-project.org/web/packages/TSplotly/index.html).
