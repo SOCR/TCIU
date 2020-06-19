@@ -25,7 +25,11 @@ The [SOCR Data Science Fundamentals project explores new theoretical representat
 R Code
 ======
 
-The examples, demonstrations and simulations are designed, built, implemented and validated in the [R environment](https://www.r-project.org). See the [code folder](https://github.com/SOCR/TCIU/tree/master/code).
+The examples, demonstrations and simulations are designed, built, implemented and validated in the [R environment](https://www.r-project.org). 
+
+The source R code for the package is in the [package folder](https://github.com/SOCR/TCIU/tree/master/package).
+
+The source RMarkdown code for the website is in the [website folder](https://github.com/SOCR/TCIU/tree/master/website).
 
 Team
 ====
