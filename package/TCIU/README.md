@@ -45,3 +45,8 @@ install.packages("./TCIU_1.0.0.tar.gz", repos = NULL, type = "source")
   + **ILT**:  numerical method to compute inverse of Laplace Transform 
   + **kimesurface_transform**:  do the kimesurface transform on a function with a specified set of complex value
   + **inv_kimesurface_transform**:  do the inverse kimesurface transform to convert to get the original 1D function in [0, 2*pi] or other similar periodic time range
+
+
+### Contact Information
+This package is created by [Yunjie Guo](mailto:jerryguo@umich.edu). Authors of this package includes [Yongkai Qiu](https://socr.umich.edu/people/Yongkai_Qiu.html), [Zhe Yin](http://socr.umich.edu/people/Zhe_Yin.html), Jinwen Cao, Yupeng Zhang, Rongqian Zhang, Yuyao Liu and [Ivo D. Dinov](http://www.socr.umich.edu/people/dinov/). This package is set up under the SOCR [TCIU project](http://www.socr.umich.edu/TCIU/). More details of this project would be found on the [SOCR website](http://www.socr.umich.edu/).
+

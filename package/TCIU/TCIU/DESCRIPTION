@@ -4,9 +4,12 @@ Version: 1.0.0
 Authors@R: c(person("Yongkai", "Qiu", role = "aut"),
              person("Zhe", "Yin", role = "aut"),
              person("Jinwen", "Cao", role = "aut"),
+             person("Yupeng", "Zhang", role = "aut"),
+             person("Yuyao", "Liu", role = "aut"),
+             person("Rongqian", "Zhang", role = "aut"),
              person("Yunjie", "Guo", role = c("aut", "cre"), email = "jerryguo@umich.edu"),
              person("Ivo","Dinov", role = "aut"))
-URL: https://github.com/SOCR/TCIU
+URL: https://github.com/SOCR/TCIU, https://spacekime.org, https://tciu.predictive.space
 Description: Provide user with a clearer way to see all functions used inside the TCIU project and try to show
              readers how to generate similar results based on functions provided. There are 15 core functions which can be seperated into three groups.
              The first part has 4 functions fmri_time_series, fmri_kimesurface, fmri_image, fmri_ts_forecast.

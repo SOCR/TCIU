@@ -2,7 +2,7 @@
 title: "Workflow of TCIU Analytics"
 subtitle: "Detection of activated areas in fMRI data and its Visualization"
 author: "<h3> SOCR Team </h3>"
-date: "`r format(Sys.time(), '%B %Y')`"
+date: "`r format(Sys.time(),'%m/%d/%Y')`"
 output: 
   html_document:
     theme: spacelab

@@ -2,7 +2,7 @@
 title: "Functions of TCIU Analytics"
 subtitle: "Validation using 4D Complex (mag,phase) and Real (solely-mag reconstruction) fMRI data"
 author: "<h3> SOCR Team </h3>"
-date: "`r format(Sys.time(), '%B %Y')`"
+date: "`r format(Sys.time(),'%m/%d/%Y')`"
 output: 
   html_document:
     theme: spacelab
