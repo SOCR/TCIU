@@ -27,7 +27,7 @@ for(axis in c("x", "y", "z")){
                   "y" = {30},
                   "z" = {22})
   print(fmri_2dvisual(p_simulate_ttest_raw, list(axis, axis_i), 
-                      hemody_data=NULL, mask_3d=fmri_generate$mask, 
+                      hemody_data=NULL, mask=fmri_generate$mask, 
                       p_threshold = 0.05, legend_show = TRUE, 
                       method = "scale_p",
                       color_pal = "YlOrRd", multi_pranges=TRUE))
@@ -43,13 +43,13 @@ print(fmri_3dplot_df$plot)
 
 readline("press any key to continue")
 # load 3d nifti data of p value
-dim(pval)
+dim(pval1)
 
 
 readline("press any key to continue")
 # post-hoc test
 # do the fdr correction
-pval_fdr = fmri_post_hoc(pval , fdr_corr = "fdr",
+pval_fdr = fmri_post_hoc(pval1 , fdr_corr = "fdr",
 						 spatial_cluster.thr = NULL,
 						 spatial_cluster.size = NULL, 
 						 show_comparison = FALSE)
@@ -72,7 +72,7 @@ fmri_pval_comparison_2d(list(p_simulate_ttest_raw, pval_posthoc),
 						list('pval_simulated', 'pval_posthoc'),
 						list(list(35, 33, 22), list(40, 26, 33)), 
 						hemody_data = NULL, 
-						mask_3d = mask, p_threshold = 0.05, 
+						mask = mask, p_threshold = 0.05, 
 						legend_show = FALSE, method = 'scale_p',
 						color_pal = "YlOrRd", multi_pranges=FALSE)
 }
