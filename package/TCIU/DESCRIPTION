@@ -1,0 +1,28 @@
+Package: TCIU
+Title: Functions Used in Time Complexity and Inferential Uncertainty
+Version: 1.0.0
+Authors@R: c(person("Yongkai", "Qiu", role = "aut"),
+             person("Zhe", "Yin", role = "aut"),
+             person("Jinwen", "Cao", role = "aut"),
+             person("Yunjie", "Guo", role = c("aut", "cre"), email = "jerryguo@umich.edu"),
+             person("Ivo","Dinov", role = "aut"))
+URL: https://github.com/SOCR/TCIU
+Description: Provide user with a clearer way to see all functions used inside the TCIU project and try to show
+             readers how to generate similar results based on functions provided. There are 15 core functions which can be seperated into three groups.
+             The first part has 4 functions fmri_time_series, fmri_kimesurface, fmri_image, fmri_ts_forecast.
+             They are used to draw the time-series of the fMRI data and forecast or transform time-series data.
+             The second part has 7 functions fmri_simulate_func, fmri_stimulus_detect, fmri_2&3dvisual, fmri_pval_comparison_2&3d.
+             They are used to simulate the real-valued fMRI data, detect the activated area with p-values as output and visualize the p-values in the brain.
+             The final part had 4 functions which is about the laplace transform and kimesurface towards the fMRI data.
+Depends: R (>= 3.5.0)
+Imports: stats, ggplot2, dplyr, tidyr, RColorBrewer, fancycut, scales,
+         plotly, gridExtra, ggpubr, ICSNP, AnalyzeFMRI, rrcov,
+         geometry, DT, forecast, fmri, pracma, zoo, extraDistr, 
+         spatstat, cubature, doParallel, reshape2
+Suggests: oro.nifti, magrittr, knitr
+License: GPL-3
+VignetteBuilder: knitr
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.0
+NeedsCompilation: no
