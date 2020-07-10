@@ -7,11 +7,11 @@
 fmri_image(fmridata, option = "manually", voxel_location = NULL, time = NULL)
 }
 \arguments{
-\item{fmridata}{a 4D array contains information for the fMRI spacetime image. The data should only contains the magnitude for the fMRI image.}
+\item{fmridata}{a 4D array contains information for the fMRI spacetime image. The data should only contain the magnitude for the fMRI image.}
 
 \item{option}{The default is 'manually'. If choose 'auto', then this function will lead you to key in the space (x,y,z) parameters and time (time) parameter for this function to generate graphs.}
 
-\item{voxel_location}{a 3d array indicating the spatial location of the brain. If option is auto, set the voxel_location as NULL.}
+\item{voxel_location}{a 3D array indicating the spatial location of the brain. If option is auto, set the voxel_location as NULL.}
 
 \item{time}{time location for the voxel}
 }

@@ -44,7 +44,7 @@ install.packages("./TCIU_1.0.0.tar.gz", repos = NULL, type = "source")
   + **LT**:  numerical method to compute Laplace Transform 
   + **ILT**:  numerical method to compute inverse of Laplace Transform 
   + **kimesurface_transform**:  do the kimesurface transform on a function with a specified set of complex value
-  + **inv_kimesurface_transform**:  do the inverse kimesurface transform to convert to get the original 1D function in [0, 2*pi] or other similar periodic time range
+  + **inv_kimesurface_transform**:  do the inverse kimesurface transform to convert to get the original 1D function in [0, 2$\pi$] or other similar periodic time range
 
 
 ### Contact Information

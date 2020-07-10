@@ -2,7 +2,7 @@
 % Please edit documentation in R/fmri_stimulus_detect.R
 \name{fmri_stimulus_detect}
 \alias{fmri_stimulus_detect}
-\title{fmri data stimulus detection}
+\title{fMRI data stimulus detection}
 \usage{
 fmri_stimulus_detect(
   fmridata,
@@ -18,34 +18,34 @@ fmri_stimulus_detect(
 )
 }
 \arguments{
-\item{fmridata}{an array or a vector which contains the spatial and/or temporal record of fmri result}
+\item{fmridata}{an array or a vector which contains the spatial and/or temporal record of fMRI result}
 
-\item{mask}{a 3d array indicating the spacial location of the brain}
+\item{mask}{a 3d array indicating the spatial location of the brain}
 
 \item{stimulus_idx}{a vector that specifies when motion happens}
 
 \item{rest_idex}{a vector that specifies when study participant does not move}
 
-\item{method}{a string that indicates which testing method is to be used. There are 5 options: 'HotellingT2', 'Wilk's Lambda' and 'gLRT'(likelihood ratio test) for complex fmridata and 't-test', 'wilcox-test' for real fmridata. For 4D real-valued fMRI data, two more options: 'on_off_diff' and 'HRF' method can be applied.}
+\item{method}{a string that indicates which testing method is to be used. There are 5 options: 'HotellingT2', 'Wilk's Lambda' and 'gLRT'(likelihood ratio test) for complex fMRI data and 't-test', 'wilcoxon-test' for real fMRI data. For 4D real-valued fMRI data, two more options: 'on_off_diff' and 'HRF' method can be applied.}
 
-\item{fdr_corr}{a logical variable. True if fdr correction is to be applied}
+\item{fdr_corr}{a logical variable. True if FDR correction is to be applied}
 
 \item{spatial_cluster.thr}{threshold p-value to be used for spatial clustering}
 
 \item{spatial_cluster.size}{number of spatially connected voxels to be tested for spatial clustering}
 
-\item{ons}{a vector with the first time points of the time periods when the fMRI data receives stimulation. The default is NULL. Need to specifiy when choose the method 'gLRT' or 'HRF'.}
+\item{ons}{a vector with the first time points of the time periods when the fMRI data receives stimulation. The default is NULL. Need to specify when choose the method 'gLRT' or 'HRF'.}
 
-\item{dur}{a vector of the time length of each stimulated period. The default is NULL. Need to specifiy when choose the method 'gLRT' or 'HRF'.}
+\item{dur}{a vector of the time length of each stimulated period. The default is NULL. Need to specify when choose the method 'gLRT' or 'HRF'.}
 }
 \value{
-If input fmridata is 4d, return a 3d array storing p-values for the 4d fmridata. If input fmridata is less than 4d, return a vector storing p-values for the fmridata.
+If input fMRI data is 4d, return a 3d array storing p-values for the 4d fMRI data. If input fMRI data is less than 4d, return a vector storing p-values for the fMRI data.
 }
 \description{
-This function takes a real/complex valued fmridata and detects locations where stimulus occurs
+This function takes a real/complex valued fMRI data and detects locations where stimulus occurs
 }
 \details{
-The function \code{fmri_stimulus_detect} is used to conduct motor area detection. It first takes in a real or complex valued fmridata, and then users can choose to use various methods to find the spacial regions where motor area is located inside the brain. User can either input the 4d fmridata ans get a 3d array storing p-values or input the fmridata with smaller dimension(e.x. fix the x,y axis) and get a vector storing p-values. Besides, one can use this function to just calculate raw p-values, and we also provide options so that users can do fdr correction and spatial clustering to get a more accurate result.
+The function \code{fmri_stimulus_detect} is used to conduct motor area detection. It first takes in a real or complex valued fMRI data, and then users can choose to use various methods to find the spatial regions where motor area is located inside the brain. User can either input the 4d fMRI data and get a 3d array storing p-values or input the fMRI data with smaller dimension (e.g. fix the x,y axis) and get a vector storing p-values. Besides, one can use this function to just calculate raw p-values, and we also provide options so that users can do FDR correction and spatial clustering to get a more accurate result.
 }
 \examples{
 fmri_generate = fmri_simulate_func(dim_data = c(64, 64, 40), mask = mask)
@@ -54,14 +54,14 @@ stimulus_idx = fmri_generate$on_time
 ons = fmri_generate$ons
 dur = fmri_generate$dur
 
-# p-values using t-test for 4d fmridata
+# p-values using t-test for 4d fMRI data
 p_value1 = fmri_stimulus_detect(fmridata = fmridata, mask = mask,
                                 stimulus_idx = stimulus_idx,
                                 method = 't-test')
 dim(fmridata)
 dim(p_value1)
 
-# p-values using t-test for 2d fmridata
+# p-values using t-test for 2d fMRI data
 p_value2 = fmri_stimulus_detect(fmridata = fmridata[40,41,,], mask = mask,
                                 stimulus_idx = stimulus_idx,
                                 method = 't-test')

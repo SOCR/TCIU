@@ -9,18 +9,18 @@ fmri_kimesurface(fmridata, voxel_location = NULL, is.4d = TRUE)
 \arguments{
 \item{fmridata}{a 4d array which contains the spatial and temporal record of fMRI result or a single real valued vector.}
 
-\item{voxel_location}{a 3d array indicating the spacial location of the brain.}
+\item{voxel_location}{a 3d array indicating the spatial location of the brain.}
 
 \item{is.4d}{The default is true. If change to false, need to input a vector instead of array.}
 }
 \value{
-an interactive plot in 3D the kime-surface
+an interactive plot in 3D kimesurface
 }
 \description{
-Use \code{plotly} to display in 3D the kime-series as 2D manifolds (kime-surfaces) over the cartesian domain.
+Use \code{plotly} to display in 3D the kime-series as 2D manifolds (kimesurface) over the cartesian domain.
 }
 \details{
-The function \code{fmri_kimesurface} is display in 3D the kime-series as 2D manifolds (kime-surfaces) over the Cartesian domain. It helps transform the fMRI time-series data at a fixed voxel location into a kime-surface (kime-series). User can choose to provide the 4D array of the fMRI spacetime image and the voxel_location or a single time-series vector, then a 3D visualization will be shown.
+The function \code{fmri_kimesurface} is display in 3D the kime-series as 2D manifolds (kimesurface) over the Cartesian domain. It helps transform the fMRI time-series data at a fixed voxel location into a kimesurface (kime-series). User can choose to provide the 4D array of the fMRI spacetime image and the voxel_location or a single time-series vector, then a 3D visualization will be shown.
 }
 \examples{
 # sample fMRI time-series vector of a single voxel

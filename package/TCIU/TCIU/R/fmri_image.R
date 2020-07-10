@@ -1,9 +1,9 @@
 #' @title interactive graph object of the fMRI image
 #' @description fMRI image visualization method, based on package \code{plotly}.
 #'
-#' @param fmridata a 4D array contains information for the fMRI spacetime image. The data should only contains the magnitude for the fMRI image.
+#' @param fmridata a 4D array contains information for the fMRI spacetime image. The data should only contain the magnitude for the fMRI image.
 #' @param option The default is 'manually'. If choose 'auto', then this function will lead you to key in the space (x,y,z) parameters and time (time) parameter for this function to generate graphs.
-#' @param voxel_location a 3d array indicating the spatial location of the brain. If option is auto, set the voxel_location as NULL.
+#' @param voxel_location a 3D array indicating the spatial location of the brain. If option is auto, set the voxel_location as NULL.
 #' @param time time location for the voxel
 #'
 #' @details

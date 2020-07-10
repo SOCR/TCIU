@@ -23,7 +23,7 @@ vignette: >
 
 # Background
 
-The Laplace Transform, L, allows us to examine the relations between the space-time and space-kime representations of longitudinal data. The Fourier transformation is a linear operator that maps complex-valued functions of real variables (e.g., space, time domains) to complex valued functions of other real variables (e.g., frequency domain). The Laplace transform is similar, however, it sends complex-valued functions of positive real variables (e.g., time) to complex-valued functions defined on complex variables (e.g., kime).
+The Laplace Transform, L, allows us to examine the relations between the space-time and space-kime representations of longitudinal data. The Fourier transformation is a linear operator that maps complex-valued functions of real variables (e.g., space, time domains) to complex valued functions of other real variables (e.g., frequency domain). The Laplace transform is similar. However, it sends complex-valued functions of positive real variables (e.g., time) to complex-valued functions defined on complex variables (e.g., kime).
 
 
 ```{r warning=FALSE, message=FALSE}
@@ -44,7 +44,7 @@ Here we first apply the discrete Laplace Transform (LT) function in our package 
 
 
 ```{r eval=FALSE, warning=FALSE, message=FALSE, fig.align = "center"}
-# For this part of code we comment it out and import the output plot already generated before to reduce time
+# For this part of code, we comment it out and import the output plot already generated before to reduce time
 # But this part of code can be run successfully. If you are interested, you can try it on your computer!
 
 # discrete Laplace Transform of sine
@@ -52,7 +52,7 @@ range_limit = 2
 x2 = seq(from = 0, to = range_limit, length.out = 50)[2:50]
   # drop the first row to avoid real part value of 0
 y2 = seq(from = 0, to = range_limit, length.out = 50)[2:50]
-  # drop the first column to to avoid imaginary part value of 0
+  # drop the first column to avoid imaginary part value of 0
 
 # Recompute the LT(sin) discretized on lower-res grid
 z2_grid = array(dim=c(length(x2), length(y2)))# x2 %o% y2
@@ -110,10 +110,10 @@ From the plot, we can easily tell that our discrete LT function generate the sam
 
 ## ILT on discrete LT of sine
 
-Here we first apply the discrete Laplace Transform (LT) function in our package on the sine function with the domain of $[0, 2*pi]$, and then use the inverse Laplace Transform (ILT) function in our package to prove the Laplace Transformation has been converted back to sine.
+Here we first apply the discrete Laplace Transform (LT) function in our package on the sine function with the domain of $[0, 2\pi]$, and then use the inverse Laplace Transform (ILT) function in our package to prove the Laplace Transformation has been converted back to sine.
 
 ```{r warning=FALSE, message=FALSE, fig.width = 9, fig.align = "center", eval=FALSE}
-# For this part of code we comment it out and import the output plot already generated before to reduce time
+# For this part of code, we comment it out and import the output plot already generated before to reduce time
 # But this part of code can be run successfully. If you are interested, you can try it on your computer!
 
 # discrete Laplace Transform of sine
@@ -167,7 +167,7 @@ In this part, we still apply the Kimesurface transform on our sine function, and
 
 ## Kimesurface transform of sine function
 
-Below, We apply the Kimesurface transform on the sine function, and make the plot of the 2D function using the magnitude of the complex value as y.
+Below, we apply the Kimesurface transform on the sine function, and make the plot of the 2D function using the magnitude of the complex value as y.
 
 
 ```{r warning=FALSE, message=FALSE}

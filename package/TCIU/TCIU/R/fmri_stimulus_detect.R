@@ -1,23 +1,23 @@
-#' @title fmri data stimulus detection
-#' @description This function takes a real/complex valued fmridata and detects locations where stimulus occurs
+#' @title fMRI data stimulus detection
+#' @description This function takes a real/complex valued fMRI data and detects locations where stimulus occurs
 #'
-#' @param fmridata an array or a vector which contains the spatial and/or temporal record of fmri result
-#' @param mask a 3d array indicating the spacial location of the brain
+#' @param fmridata an array or a vector which contains the spatial and/or temporal record of fMRI result
+#' @param mask a 3d array indicating the spatial location of the brain
 #' @param stimulus_idx a vector that specifies when motion happens 
 #' @param rest_idex a vector that specifies when study participant does not move
-#' @param method a string that indicates which testing method is to be used. There are 5 options: 'HotellingT2', 'Wilk's Lambda' and 'gLRT'(likelihood ratio test) for complex fmridata and 't-test', 'wilcox-test' for real fmridata. For 4D real-valued fMRI data, two more options: 'on_off_diff' and 'HRF' method can be applied.
-#' @param fdr_corr a logical variable. True if fdr correction is to be applied
+#' @param method a string that indicates which testing method is to be used. There are 5 options: 'HotellingT2', 'Wilk's Lambda' and 'gLRT'(likelihood ratio test) for complex fMRI data and 't-test', 'wilcoxon-test' for real fMRI data. For 4D real-valued fMRI data, two more options: 'on_off_diff' and 'HRF' method can be applied.
+#' @param fdr_corr a logical variable. True if FDR correction is to be applied
 #' @param spatial_cluster.thr threshold p-value to be used for spatial clustering
 #' @param spatial_cluster.size number of spatially connected voxels to be tested for spatial clustering
-#' @param ons a vector with the first time points of the time periods when the fMRI data receives stimulation. The default is NULL. Need to specifiy when choose the method 'gLRT' or 'HRF'.
-#' @param dur a vector of the time length of each stimulated period. The default is NULL. Need to specifiy when choose the method 'gLRT' or 'HRF'.
+#' @param ons a vector with the first time points of the time periods when the fMRI data receives stimulation. The default is NULL. Need to specify when choose the method 'gLRT' or 'HRF'.
+#' @param dur a vector of the time length of each stimulated period. The default is NULL. Need to specify when choose the method 'gLRT' or 'HRF'.
 #'
 #' @details
-#' The function \code{fmri_stimulus_detect} is used to conduct motor area detection. It first takes in a real or complex valued fmridata, and then users can choose to use various methods to find the spacial regions where motor area is located inside the brain. User can either input the 4d fmridata ans get a 3d array storing p-values or input the fmridata with smaller dimension(e.x. fix the x,y axis) and get a vector storing p-values. Besides, one can use this function to just calculate raw p-values, and we also provide options so that users can do fdr correction and spatial clustering to get a more accurate result.
+#' The function \code{fmri_stimulus_detect} is used to conduct motor area detection. It first takes in a real or complex valued fMRI data, and then users can choose to use various methods to find the spatial regions where motor area is located inside the brain. User can either input the 4d fMRI data and get a 3d array storing p-values or input the fMRI data with smaller dimension (e.g. fix the x,y axis) and get a vector storing p-values. Besides, one can use this function to just calculate raw p-values, and we also provide options so that users can do FDR correction and spatial clustering to get a more accurate result.
 #'
 #' @author SOCR team <\url{http://socr.umich.edu/people/}>
 #'
-#' @return If input fmridata is 4d, return a 3d array storing p-values for the 4d fmridata. If input fmridata is less than 4d, return a vector storing p-values for the fmridata.
+#' @return If input fMRI data is 4d, return a 3d array storing p-values for the 4d fMRI data. If input fMRI data is less than 4d, return a vector storing p-values for the fMRI data.
 #' @export
 #'
 #' @import AnalyzeFMRI dplyr fmri
@@ -34,14 +34,14 @@
 #' ons = fmri_generate$ons
 #' dur = fmri_generate$dur
 #' 
-#' # p-values using t-test for 4d fmridata
+#' # p-values using t-test for 4d fMRI data
 #' p_value1 = fmri_stimulus_detect(fmridata = fmridata, mask = mask,
 #'                                 stimulus_idx = stimulus_idx,
 #'                                 method = 't-test')
 #' dim(fmridata)
 #' dim(p_value1)
 #' 
-#' # p-values using t-test for 2d fmridata
+#' # p-values using t-test for 2d fMRI data
 #' p_value2 = fmri_stimulus_detect(fmridata = fmridata[40,41,,], mask = mask,
 #'                                 stimulus_idx = stimulus_idx,
 #'                                 method = 't-test')
@@ -53,7 +53,7 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
     # if data is less than 4d
     if (is.null(dim(fmridata)) == TRUE) {
         # 1d
-        if (typeof(fmridata) != "complex" & method %in% c("t-test", "wilcox-test")) {
+        if (typeof(fmridata) != "complex" & method %in% c("t-test", "wilcoxon-test")) {
             p_val = fmri_p_val(fmridata = fmridata, stimulus_idx = stimulus_idx, test_type = method)
             if (is.na(p_val) == TRUE) {
                 p_val = 1
@@ -71,7 +71,7 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
             if (typeof(fmridata) == "complex") {
                 stop("Invalid test type! You can only use HotellingsT2, Wilk's Lambda or gLRT for complex data!")
             } else {
-                stop("Invalid test type! You can only use t-test or wilcox-test for real data!")
+                stop("Invalid test type! You can only use t-test or wilcoxon-test for real data!")
             }
         }
         
@@ -82,7 +82,7 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
         fmri_mat = matrix(fmridata, nrow = prod(p_dim), ncol = time_span)
         p_vec = c()
         for (i in 1:nrow(fmri_mat)) {
-            if (typeof(fmri_mat[i, ]) != "complex" & method %in% c("t-test", "wilcox-test")) {
+            if (typeof(fmri_mat[i, ]) != "complex" & method %in% c("t-test", "wilcoxon-test")) {
                 p_val = fmri_p_val(fmridata = fmri_mat[i, ], stimulus_idx = stimulus_idx, test_type = method)
                 if (is.na(p_val) == TRUE) {
                   p_val = 1
@@ -98,7 +98,7 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
                 if (typeof(fmridata) == "complex") {
                   stop("Invalid test type! You can only use HotellingsT2, Wilk's Lambda or gLRT for complex data!")
                 } else {
-                  stop("Invalid test type! You can only use t-test or wilcox-test for real data!")
+                  stop("Invalid test type! You can only use t-test or wilcoxon-test for real data!")
                 }
             }
             p_vec = c(p_vec, p_val)
@@ -126,9 +126,9 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
         off_idx = rest_idex
     }
     # if non-complex data
-    if (typeof(fmridata) != "complex" & method %in% c("t-test", "wilcox-test", "on_off_diff", "HRF")) {
+    if (typeof(fmridata) != "complex" & method %in% c("t-test", "wilcoxon-test", "on_off_diff", "HRF")) {
         
-        if (method %in% c("t-test", "wilcox-test")) {
+        if (method %in% c("t-test", "wilcoxon-test")) {
             for (x in 1:dim1) {
                 for (y in 1:dim2) {
                   for (z in 1:dim3) {
@@ -169,7 +169,7 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
             p_val_3d = fmri_hrf_p_val(fmridata, mask = mask, ons = ons, dur = dur)
             
         } else {
-            stop("Invalid test type! You can only use t-test or wilcox-test or on_off_diff or HRF for real data!")
+            stop("Invalid test type! You can only use t-test or wilcoxon-test or on_off_diff or HRF for real data!")
         }
         
         

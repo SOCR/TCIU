@@ -1,5 +1,5 @@
 #' @title numerical method to compute inverse of Laplace Transform 
-#' @description a function that numerically compute the inverse of Laplace Transform
+#' @description a function that numerically computes the inverse of Laplace Transform
 #' 
 #' @param FUNCT function object F(z), typically a Laplace-Transform of a function f(t)
 #' @param t time domain value to evaluate the ILT(F)(t)
@@ -12,7 +12,7 @@
 #' 
 #' @details
 #' This function first uses full optimum contour path to do inverse Laplace Transform.
-#' However if this method fails, the function will automatically changed to the method 
+#' However, if this method fails, the function will automatically change to the method 
 #' of using Bromwich contour path to do inverse Laplace Transform
 #' 
 #' @author SOCR team <\url{http://socr.umich.edu/people/}>

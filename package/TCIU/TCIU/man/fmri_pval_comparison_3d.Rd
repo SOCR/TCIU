@@ -2,7 +2,7 @@
 % Please edit documentation in R/fmri_pval_comparison_3d.R
 \name{fmri_pval_comparison_3d}
 \alias{fmri_pval_comparison_3d}
-\title{3D comparison visualization between the p value}
+\title{comparison between 3d visualization for p-values}
 \usage{
 fmri_pval_comparison_3d(
   pval_3d_ls,
@@ -14,16 +14,16 @@ fmri_pval_comparison_3d(
 )
 }
 \arguments{
-\item{pval_3d_ls}{a list of two element, each element is a a 3D array p value used to plot activated area of the brain}
+\item{pval_3d_ls}{a list of two element, each element is a 3D array of p-values used to plot activated area of the brain}
 
-\item{mask}{a 3D nifti or 3D array data to show the shell of the brain}
+\item{mask}{a 3D nifti or 3D array of data to show the shell of the brain}
 
-\item{p_threshold}{a numeric value or NULL that can be selected randomly below 0.05 to 
+\item{p_threshold}{NULL or a numeric value that can be selected randomly below 0.05 to 
 drop insignificant p-values of no need or drop no p-values. If 'low5_percent' method is used, 
 make 'p_threshold' as NULL. The default is 0.05.}
 
 \item{method_ls}{a string that represents method for the plot. 
-There are 3 options: 'scale_p' and 'low5_percent'. The default is 'scale_p'. 
+There are 2 options: 'scale_p' and 'low5_percent'. The default is 'scale_p'. 
 'scale_p' is to draw the plot with fixed color scale for fixed range of p value; 
 'low5_percent' is to draw the plot for the smallest 5 percent of p value 
 when all the p values are not significant}
@@ -41,14 +41,14 @@ a plot drawn by \code{plotly}
 \description{
 a visualization method, use \code{plotly} to compare 
 the activated parts inside the brain, using two sets of color palettes. 
-The activated parts are decided by different p values.
+The activated parts are localized with different p values.
 }
 \details{
 The function \code{fmri_pval_comparison_3d} is used to visualize and compare the 3D plots of 
-the activated parts in the brain in one brain shell. The activated parts are plotted 
-based on given p values. Note that this comparison can only be made when the masks 
-of the two p values are the same. When providing input of two set of the 3D array p value, 
-and corresponding p threshold for each p value data, and the method to draw the plot, 
+the activated parts in one brain shell. The activated parts are plotted 
+based on p-values provided. Note that this comparison can only be made when the masks 
+of the two p values are the same. When providing input of two set of the 3D array of p-values, 
+corresponding p threshold for each p value data, and the method to draw the plot, 
 the plot will be generated with one brain shell and two groups of activated parts 
 in two sets of color palettes. The size and color of the scatter points represent 
 different stimulated levels of the activated parts.

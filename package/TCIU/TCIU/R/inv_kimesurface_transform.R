@@ -1,10 +1,10 @@
 #' @title inverse kimesurface transform on a function in different periodic ranges
-#' @description This function do the inverse kimesurface transform to convert to get the original
-#' 1D function in [0, 2*pi] or other similar periodic time range.
+#' @description This function applies the inverse kimesurface transform to convert a kimesurface-transformed function back
+#' to get the original 1D function in [0, 2*pi] or other similar periodic time range.
 #' 
 #' @param time_points a sequence of points in [0, 2*pi] or other periodic range
 #' @param array_2d 2D array, got from the kimesurface_transform
-#' @param num_length interpolate f(t) to num_length samples in [0 : 2*pi] to extend the plot
+#' @param num_length integer, interpolate f(t) to num_length samples in [0 : 2*pi] to extend the plot
 #' @param m width of the contour path in C; too small values may lead to singularities on the negative x-axis; 
 #' too large valued may lead to numerical instability for large positive x-axis. The default is 1.
 #' @param msg Boolean to show/hide warnings. The default is TRUE.

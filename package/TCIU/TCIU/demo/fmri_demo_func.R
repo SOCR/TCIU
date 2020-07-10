@@ -10,7 +10,7 @@ fmri_generate = fmri_simulate_func(dim_data = c(64, 64, 40), mask = mask,
 								 
 readline("press any key to continue")
 # For simplicity here we use t-test to generate p-values. We also have other tests available. See more details in fmri_stimulus_detect.
-# apply our p value detection function on our simulated fMRI data, choosing t test
+# apply our p value detection function on our simulated fMRI data, choosing t-test
 p_simulate_ttest_raw = 
 fmri_stimulus_detect(fmridata= fmri_generate$fmri_data, 
 					 mask = fmri_generate$mask,
@@ -48,7 +48,7 @@ dim(pval1)
 
 readline("press any key to continue")
 # post-hoc test
-# do the fdr correction
+# do the FDR correction
 pval_fdr = fmri_post_hoc(pval1 , fdr_corr = "fdr",
 						 spatial_cluster.thr = NULL,
 						 spatial_cluster.size = NULL, 

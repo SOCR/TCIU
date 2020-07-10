@@ -34,11 +34,11 @@ too large valued may lead to numerical instability for large positive x-axis. Th
 a real value computed from inverse Laplace Transform
 }
 \description{
-a function that numerically compute the inverse of Laplace Transform
+a function that numerically computes the inverse of Laplace Transform
 }
 \details{
 This function first uses full optimum contour path to do inverse Laplace Transform.
-However if this method fails, the function will automatically changed to the method 
+However, if this method fails, the function will automatically change to the method 
 of using Bromwich contour path to do inverse Laplace Transform
 }
 \examples{

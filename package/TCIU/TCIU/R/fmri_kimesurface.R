@@ -1,15 +1,15 @@
 #' @title interactive graph object of 3D kime-series
-#' @description Use \code{plotly} to display in 3D the kime-series as 2D manifolds (kime-surfaces) over the cartesian domain.
+#' @description Use \code{plotly} to display in 3D the kime-series as 2D manifolds (kimesurface) over the cartesian domain.
 #'
 #' @param fmridata a 4d array which contains the spatial and temporal record of fMRI result or a single real valued vector.
-#' @param voxel_location a 3d array indicating the spacial location of the brain.
+#' @param voxel_location a 3d array indicating the spatial location of the brain.
 #' @param is.4d The default is true. If change to false, need to input a vector instead of array.
 #'
-#' @details The function \code{fmri_kimesurface} is display in 3D the kime-series as 2D manifolds (kime-surfaces) over the Cartesian domain. It helps transform the fMRI time-series data at a fixed voxel location into a kime-surface (kime-series). User can choose to provide the 4D array of the fMRI spacetime image and the voxel_location or a single time-series vector, then a 3D visualization will be shown.
+#' @details The function \code{fmri_kimesurface} is display in 3D the kime-series as 2D manifolds (kimesurface) over the Cartesian domain. It helps transform the fMRI time-series data at a fixed voxel location into a kimesurface (kime-series). User can choose to provide the 4D array of the fMRI spacetime image and the voxel_location or a single time-series vector, then a 3D visualization will be shown.
 #'
 #' @author SOCR team <\url{http://socr.umich.edu/people/}>
 #'
-#' @return an interactive plot in 3D the kime-surface
+#' @return an interactive plot in 3D kimesurface
 #' @export
 #'
 #' @import plotly DT scales

@@ -7,15 +7,15 @@
 LT(FUNCT, z)
 }
 \arguments{
-\item{FUNCT}{function object f(t) to do Laplace Transform}
+\item{FUNCT}{a function object f(t) conducting Laplace Transform}
 
-\item{z}{a complex domain value to evaluate the F(z)=LT(f)(z)}
+\item{z}{a complex domain value used to evaluate the F(z)=LT(f)(z)}
 }
 \value{
 a complex value computed from Laplace Transform
 }
 \description{
-a function that numerically compute the Laplace Transform
+a function that numerically computes the Laplace Transform
 }
 \examples{
 f = function(t) { t }; z= 1+1i; 

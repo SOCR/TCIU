@@ -1,17 +1,17 @@
 #' @title visualization of the 2D brain (axial, sagittal and coronal) with the activated areas
-#' @description a visualization method, use \code{ggplot2} to draw the brain 
+#' @description a visualization method, using \code{ggplot2} to draw the brain 
 #' from axial, sagittal and coronal view with activated area identified by p-values
 #'
-#' @param pval a 3D array p-values used to plot activated area of the brain
+#' @param pval a 3D array of p-values used to plot activated area of the brain
 #' @param axis_ls a list with two elements. The first element is the character of 'x', 'y', 'z'.
-#' The second element is a numeric integer to show the specific slice on the fixed axis identified in the first element.
+#' The second element is an integer showing a specific slice on the fixed axis identified in the first element.
 #' @param hemody_data a parameter to have the plot with/without hemodynamic contour. The default is NULL to make the plot 
 #' without hemodynamic contour, otherwise assign a 3D array of the hemodynamic data.
-#' @param mask a 3D nifti or 3D array data to show the shell of the brain
-#' @param p_threshold a numeric value or NULL that can be selected randomly below 0.05 to 
-#' drop insignificant p-values of no need or drop no p-values. If 'low5_percent' method is used, 
+#' @param mask a 3D nifti or 3D array of data to show the shell of the brain
+#' @param p_threshold NULL or a numeric value that can be selected randomly below 0.05 to 
+#' drop all p-values above the threshold. If 'low5_percent' method is used, 
 #' make 'p_threshold' as NULL. The default is 0.05.
-#' @param legend_show a logical parameter to specify whether the final plot has the legend
+#' @param legend_show a logical parameter to specify whether the final plot has legend
 #' @param method a string that represents method for the plot. 
 #' There are 3 options: 'min_max', 'scale_p' and 'low5_percent'. The default is 'scale_p'.
 #' 'min_max' is to draw plot based on the color scale of the minimum and maximum of the p value; 

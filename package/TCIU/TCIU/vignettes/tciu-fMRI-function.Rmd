@@ -1,6 +1,6 @@
 ---
 title: "Functions of TCIU Analytics"
-subtitle: "Validation using 4D Complex (mag,phase) and Real (solely-mag reconstruction) fMRI data"
+subtitle: "Validation using 4D Complex (mag, phase) and Real (solely-mag reconstruction) fMRI data"
 author: "<h3> SOCR Team </h3>"
 date: "`r format(Sys.time(),'%m/%d/%Y')`"
 output: 
@@ -36,62 +36,62 @@ require(AnalyzeFMRI)
 
 ## FMRI data simulation
 
-- **fmri_simulate_func**: an real-valued fMRI data simulation function, used to simply generate a 3 dimension area with activated parts inside.
+- **fmri_simulate_func**: a real-valued fMRI data simulation function, used to simply generate a 3D fMRI data associated with brain area with activated parts inside.
 
 ## Visualization of the fMRI data in time-series
 
-- **fmri_time_series**: create four interactive time series graphs for the Real, Imaginary, Magnitude, and Phase parts for the fMRI spacetime data.
+- **fmri_time_series**: create four interactive time series graphs for the real, imaginary, magnitude, and phase parts for the fMRI spacetime data.
 
-- **fmri_kimesurface**: transform the fMRI time-series data at a fixed voxel location into a kime-surface.
+- **fmri_kimesurface**: transform the fMRI time-series data at a fixed voxel location into a kimesurface.
 
 - **fmri_image**: create images for front view, side view, and top view of the fMRI image.
 
-- **fmri_ts_forecast**: forecast with time series of different voxels in fMRI time-series data.
+- **fmri_ts_forecast**: forecast the fMRI data based on the time series
 
 ## Activated areas detection
 
-- **fmri_stimulus_detect**: takes in real/complex valued fmridata and detects locations where stimulus occurs (i.e. generate p-values).
+- **fmri_stimulus_detect**: take a real/complex valued fMRI data and detects locations where stimulus occurs
 
-- **fmri_post_hoc**: conduct the post-hoc process(i.e. fdr correction and spatial clustering) for a 3-dimensional p-value array.
+- **fmri_post_hoc**: conduct the post-hoc process (i.e. FDR correction and spatial clustering) for a 3-dimensional p-value array.
 
 ## Activated areas visualization
 
-- **fmri_2dvisual**: a visualization method, use ggplot2 to draw the brain from axial, sagittal and coronal view with activated area identified by p value.
+- **fmri_2dvisual**: a visualization method, use **ggplot2** to draw the brain from axial, sagittal and coronal view with activated area identified by p-values.
 
-- **fmri_pval_comparison_2d**: a plots arrangement method, which uses **gridExtra** to combine multiple 2d plots of the fMRI data together. This can bring convenience for users to compare the performance of different statistical tests based on the p values they generate.
+- **fmri_pval_comparison_2d**: a plots arrangement method, which uses **gridExtra** to combine multiple 2d plots of the fMRI data together. This can bring convenience for users to compare the performance of different statistical tests based on the p-values they provide.
 
-- **fmri_3dvisual**: a visualization method, use **plotly** to draw the 3d plot of the brain with the activated areas determined by p value.
+- **fmri_3dvisual**: a visualization method, use **plotly** to draw the 3D plot of the brain with the activated areas determined by p-values.
 
-- **fmri_pval_comparison_3d**: a visualization method, use **plotly** to compare the activated parts inside in the brain using two sets of color palette. The activated parts are decided by p values.
+- **fmri_pval_comparison_3d**: a visualization method, use **plotly** to compare the activated parts inside in the brain using two sets of color palette. The activated parts are decided by p-values.
 
 
 # fMRI data simulation
 
-## Funtion "fmri_simulate_func" 
+## Function "fmri_simulate_func" 
 
-To begin with the analytic, we need to have the 4D real-valued(solely-mag reconstruction) fMRI data or the 4D complex-value(mag,phase) fMRI data.
+To begin with the analytic, we need to have the 4D real-valued (solely-mag reconstruction) fMRI data or the 4D complex-value (mag, phase) fMRI data.
 
 If the user doesn't have the raw data, we have provided a simulation function in the package to simulate the 4D real-valued fMRI data. We also provide a sample brain-shaped mask in the package.
 
 **Details/Parameters**
 
 The function fmri_simulate_func is used to simulate fMRI data with specified dimension and total time points. 
-The fMRI data can own a brain shape by using the mask data provided in our package, if the dimension fits the same as our data (c(64, 64. 40)).
-Otherwise, the function will generate a 3d sphere data with multiple activated part inside. The activated parts can be detected based on the p values.
+The fMRI data can be brain-shaped by using the mask data provided in our package, if the dimension fits the same as our data (c(64, 64. 40)).
+Otherwise, the function will generate a 3D sphere data with multiple activated part inside. The activated parts can be detected based on the p values.
 
 Parameters in this function:
 
-- *dim_data* : a vector of length three to identify the dimension of fMRI data wanted to simulate
+- *dim_data* : a vector of length 3 to identify the dimension of fMRI data user wants to simulate
 
-- *mask* : a parameter to have the fMRI data with the brain-shaped mask provided in the package, or the 3d sphere mask generated by the function itself.
+- *mask* : a 3D array of 1’s and 0’s or NULL. To specify the area inside the brain shell. One may use the mask data provided by this package, or generate a 3D array of 1’s and 0’s of the same dimension with the fMRI data to be generated. If NULL, then the function would generate a 3D sphere mask.
 
-- *ons* : a vector of the start time points of the time period when the fMRI data receives stimulation.
+- *ons* : a vector of the start time points of the time period when the fMRI data receives stimulation
 
 - *dur* : a vector of the time period when the fMRI data receives stimulation.
 
 **Simulation**
 ```{r warning=FALSE, message=FALSE}
-# simulate the fmridata
+# simulate the fMRI data
 fmri_generate = fmri_simulate_func(dim_data = c(64, 64, 40), mask = mask, 
                                    ons = c(1, 21, 41, 61, 81, 101, 121, 141), 
                                    dur = c(10, 10, 10, 10, 10, 10, 10, 10))
@@ -101,7 +101,7 @@ dim(fmri_generate$fmri_data)
 # Visualization of the fMRI data in time-series
 
 
-## Funtion "fmri_time_series" 
+## Function "fmri_time_series" 
 
 **Details/Parameters**
 
@@ -111,13 +111,13 @@ The function fmri_time_series is used to create four interactive time series gra
 
 Parameters in this function:
 
-- *fmridata* : a 4d array which contains the spatial and temporal record of fMRI result or a single complex valued vector.
+- *fmridata* : a 4D array which contains the spatial and temporal record of fMRI result or a single complex valued vector
 
-- *voxel_location* : By default is TRUE. If change to false, need to input a vector instead of a 4d array.
+- *voxel_location* : a 3D array indicating the spatial location of the brain. If is.4d is false, set the voxel_location as NULL.
 
-- *is.4d* : By default is TRUE. If change to false, need to input a vector instead of a 4d array.
+- *is.4d* : The default is TRUE. If change to false, input a vector instead of a 4D array.
 
-- *ref* : By default is NULL. Outside extra reference **plotly** object that you wish to include in the final result.
+- *ref* : The default is NULL. User can input an outside extra reference \code{plotly} object to include in the final result.
 
 **Example**
 
@@ -129,26 +129,26 @@ load(reference_plot)
 fmri_time_series(sample_voxel, voxel_location = NULL, is.4d = FALSE, ref = reference_plot)
 ```
 
-## Funtion "fmri_kimesurface" 
+## Function "fmri_kimesurface" 
 
 **Details/Parameters**
 
-We second provide a function to transform the fMRI time-series at a fixed voxel location into a kime-surface (kime-series).
+We second provide a function to transform the fMRI time-series at a fixed voxel location into a kimesurface (kime-series).
 
-The function fmri_kimesurface is display in 3D the kime-series as 2D manifolds (kime-surface) over the Cartesian domain. User can choose to provide the 4D array of the fMRI spacetime image and the voxel_location or a single TS vector.
+The function fmri_kimesurface is display in 3D the kime-series as 2D manifolds (kimesurface) over the Cartesian domain. User can choose to provide the 4D array of the fMRI spacetime image and the voxel_location or a single TS vector.
 
 Parameters in this function:
 
-- *fmridata* : a 4d array which contains the spatial and temporal record of fMRI result or a single complex valued vector.
+- *fmridata* : a 4D array which contains the spatial and temporal record of fMRI result or a single real valued vector.
 
-- *voxel_location* : By default is TRUE. If change to false, need to input a vector instead of a 4d array.
+- *voxel_location* : a 3D array indicating the spatial location of the brain.
 
-- *is.4d* : By default is TRUE. If change to false, need to input a vector instead of a 4d array.
+- *is.4d* : The default is true. If change to false, need to input a vector instead of array.
 
 **Example**
 
 ```{r warning=FALSE, message=FALSE}
- # a data-frame with 160 rows and 4 columns: time (1:10), phases (8), states (2), and fMRI_value (Complex or Real intensity)
+ # a data-frame with 160 rows and 4 columns: time (1:10), phases (8), states (2), and fMRI data (Complex or Real intensity)
  datatable(fmri_kimesurface(fmri_generate$fmri_data, c(44,30,33))[[1]])
  # ON Kime-Surface
  fmri_kimesurface(fmri_generate$fmri_data, c(44,30,33))[[2]]
@@ -158,7 +158,7 @@ Parameters in this function:
  fmri_kimesurface(fmri_generate$fmri_data, c(44,30,33))[[4]]
 ```
 
-## Funtion "fmri_image" 
+## Function "fmri_image" 
 
 **Details/Parameters**
 
@@ -166,13 +166,13 @@ The function fmri_image is used to create images for front view, side view, and 
 
 Parameters in this function:
 
-- *fmridata* : a 4D array contains information for the fMRI spacetime image. The data should only contains the magnitude for the fMRI image.
+- *fmridata* : a 4D array contains information for the fMRI spacetime image. The data should only contain the magnitude for the fMRI image.
 
 - *option* : The default is 'manually'. If choose 'auto', then this function will lead you to key in the space (x,y,z) parameters and time (time) parameter for this function to generate graphs.
 
-- *voxel_location* : a 3d array indicating the spatial location of the brain. If option is auto, set the voxel_location as NULL.
+- *voxel_location* : a 3D array indicating the spatial location of the brain. If option is auto, set the voxel_location as NULL.
 
-- *time* : time location for the z axis
+- *time* : time location for the voxel
 
 **Example**
 
@@ -180,17 +180,17 @@ Parameters in this function:
 fmri_image(fmri_generate$fmri_data, option="manually", voxel_location = c(40,22,33), time=4)
 ```
 
-## Funtion "fmri_ts_forecast" 
+## Function "fmri_ts_forecast" 
 
 **Details/Parameters**
 
-The function fmri_ts_forecast is used to used to forecast with time series.
+The function fmri_ts_forecast is used to forecast the fMRI data based on the time series.
 
 Parameters in this function:
 
-- *fmridata* : a 4D array contains information for the fMRI spacetime image. The data should only contains the magnitude for the fMRI image.
+- *fmridata* : a 4D array contains information for the fMRI spacetime image. The data should only contain the magnitude for the fMRI image.
 
-- *voxel_location* : a 3d array indicating the voxel location of the brain
+- *voxel_location* : a 3D array indicating the voxel location of the brain
 
 - *cut* : breaking point of the time-series data. The default is 10. 
 
@@ -203,70 +203,76 @@ fmri_ts_forecast(smoothmod, voxel_location=c(41,44,33))
 
 # Activated areas detection
 
-## Funtion "fmri_stimulus_detect" 
+## Function "fmri_stimulus_detect" 
 
 **Details/Parameters**
 
-The function fmri_stimulus_detect is used to conduct motor area detection. It first takes in a real or complex valued fmridata, and then users can choose to use various methods to find the spacial regions where motor area is located inside the brain. User can either input the 4d fmridata ans get a 3d array storing p-values or input the fmridata with smaller dimension(e.x. fix the x,y axis) and get a vector storing p-values. Besides, one can use this function to just calculate raw p-values, and we also provide options so that users can do fdr correction and spatial clustering to get a more accurate result.
+The function fmri_stimulus_detect is used to conduct motor area detection. It first takes in a real or complex valued fMRI data, and then users can choose to use various methods to find the spatial regions where motor area is located inside the brain. User can either input the 4D fMRI data and get a 3d array storing p-values or input the fMRI data with smaller dimension (e.g. fix the x,y axis) and get a vector storing p-values. Besides, one can use this function to just calculate raw p-values, and we also provide options so that users can do FDR correction and spatial clustering to get a more accurate result.
 
 Parameters in this function:
 
-- *fmridata* : an array or a vector which contains the spatial and/or temporal record of fmri result
+- *fmridata* : an array or a vector which contains the spatial and/or temporal record of fMRI result
 
-- *mask* : a 3d array indicating the spacial location of the brain
+- *mask* : a 3D array indicating the spatial location of the brain
 
-- *stimulus_idx* : a vector that specifies when motion happens 
+- *stimulus_idx* : a vector that specifies when motion happens
 
 - *rest_idex* : a vector that specifies when study participant does not move
 
-- *method* : a string that indicates which testing method is to be used. There are 5 options: 'HotellingT2', 'Wilk's Lambda' and 'gLRT'(likelihood ratio test) for complex fmridata and 't-test', 'wilcox-test' for real fmridata. For 4D real-valued fMRI data, two more options: 'on_off_diff' and 'HRF' method can be applied.
+- *method* : a string that indicates which testing method is to be used. There are 5 options: 'HotellingT2', 'Wilk's Lambda' and 'gLRT'(likelihood ratio test) for complex fMRI data and 't-test', 'wilcoxon-test' for real fMRI data. For 4D real-valued fMRI data, two more options: 'on_off_diff' and 'HRF' methods can be applied.
 
-- *fdr_corr* : a logical variable. True if fdr correction is to be applied
+- *fdr_corr* : a logical variable. True if FDR correction is to be applied
 
 - *spatial_cluster.thr* : threshold p-value to be used for spatial clustering
 
 - *spatial_cluster.size* : number of spatially connected voxels to be tested for spatial clustering
 
+- *ons* : a vector with the first time points of the time periods when the fMRI data receives stimulation. The default is NULL. Need to specify when choose the method 'gLRT' or 'HRF'.
+
+- *dur* : a vector of the time length of each stimulated period. The default is NULL. Need to specify when choose the method 'gLRT' or 'HRF'.
+
 **Example**
 
 ```{r, eval=FALSE}
-# If the dimension of fmridata is lower than 4d, the corresponding dimension of output p-values will be lower.
-# Users can also choose other test method or apply fdr correction and spatial clustering to get the result.
-# Here, we provide two examples of t-test and wilcox-test for the 4d real-valued fmri data.
+# If the dimension of fmridata is lower than 4, the corresponding dimension of output p-values will be lower.
+# Users can also choose other test method or apply FDR correction and spatial clustering to get the result.
+# Here, we provide two examples of t-test and wilcoxon-test for the 4D real-valued fMRI data.
 p_simulate_t_test = fmri_stimulus_detect(fmridata= fmri_generate$fmri_data, 
                                          mask = fmri_generate$mask,
                                          stimulus_idx = fmri_generate$on_time,
                                          method = "t-test")
-p_simulate_wilcox = fmri_stimulus_detect(fmridata= fmri_generate$fmri_data, 
+p_simulate_wilcoxon = fmri_stimulus_detect(fmridata= fmri_generate$fmri_data, 
                                          mask = fmri_generate$mask,
                                          stimulus_idx = fmri_generate$on_time,
-                                         method = "wilcox-test")
+                                         method = "wilcoxon-test")
 ```
-## Funtion "fmri_post_hoc"
+## Function "fmri_post_hoc"
 
 **Details/Parameters**
 
-The function fmri_post_hoc would help do the fdr correction and spatial clustering for a 3d p-value array. The fdr correction controls for a low proportion of false positives, while the spatial clustering part help filter out all sparse p-values that are not in a specified clusters.
-**Notice: The correction for 3d p-value can be directly set in stimulus detect function. So we seldom apply this function by itself.**
+The function fmri_post_hoc would help do the FDR correction and spatial clustering for a 3d p-value array. The FDR correction controls for a low proportion of false positives, while the spatial clustering part help filter out all sparse p-values that are not in specified clusters.
+**Notice: The correction for 3D p-value can be directly set in stimulus detect function. So we seldom apply this function by itself.**
 
 Parameters in this function:
 
 - *p_val_3d* : an array which contains the p-values as the result of fMRI statistical tests.
 
-- *fdr_corr* : The default is NULL. Input "fdr" to conduct fdr correction.
+- *fdr_corr* : The default is NULL. Input "fdr" to conduct FDR correction.
 
 - *spatial_cluster.thr* : The default is NULL. Together with spatial_cluster.size are used to filter contiguous clusters of locations in a 3D array that are below some threshold and with some minimum size.
 
 - *spatial_cluster.size* : The default is NULL. The size of spatial cluster.
 
-- *show_comparison* : The default is FALSE. If TRUE, would display the comparison between raw and processed p-values.
+- *show_comparison* : The default is FALSE. If TRUE, the output would display the comparison between raw and processed p-values.
+
+- *...* : One can specify breaks etc. to modify the comparison histogram in ggplot2.
 
 **Example**
 
 ```{r}
 # load 3D p value stored in the package
 dim(pval1)
-# do the fdr correction
+# do the FDR correction
 pval_fdr = fmri_post_hoc(pval1 , fdr_corr = "fdr",
                          spatial_cluster.thr = NULL,
                          spatial_cluster.size = NULL, 
@@ -282,7 +288,7 @@ pval_posthoc = fmri_post_hoc(pval_fdr, fdr_corr = NULL,
 
 A more detailed output and manipulation about this part is introduced in the "workflow" vignette.
 
-## Funtion "fmri_2dvisual"
+## Function "fmri_2dvisual"
 
 **Details/Parameters**
 
@@ -290,23 +296,25 @@ The function fmri_2dvisual is used to find activated part of the brain based on 
 
 Parameters in this function:
 
-- *pval* : a 3d array p value that can be used to plot activated area of the brain
+- *pval* : a 3D array of p value that can be used to plot activated area of the brain
 
-- *axis_ls* :  a list with two elements. The first element is the character of x, y, z; the second element is a numeric integer to show the specific slice on the fixed axis identified in the first element
+- *axis_ls* : a list with two elements. The first element is the character of 'x', 'y', 'z'. The second element is an integer showing a specific slice on the fixed axis identified in the first element.
 
 - *hemody_data* :  a parameter to have the plot with/without hemodynamic contour. The default is NULL to make the plot without hemodynamic contour, otherwise assign a 3D array of the hemodynamic data.
 
-- *mask* : a 3d nifti or 3d array data to show the position of the brain
+- *mask* : a 3D nifti or 3D array of data to show the position of the brain
 
-- *p_threshold* : a numeric value that can be selected randomly below 0.05 to drop insignificant p value of no need. If "low5_percent" method is used, make 'p_threshold' as NULL. Default is 0.05.
+- *p_threshold* : NULL or a numeric value that can be selected randomly below 0.05 to drop all p-values above the threshold. If 'low5_percent' method is used, make 'p_threshold' as NULL. The default is 0.05.
 
-- *legend_show* : a logical parameter of True and False to specify whether the final plot has the legend
+- *legend_show* : a logical parameter to specify whether the final plot has legend
 
 - *method* : a string that represent method to draw the plot. There are 3 options: "min_max", "scale_p" and "low5_percent".
 
 - *color_pal* : name of the color palettes provided by **RColorBrewer**. The default is "YlOrRd".
 
-- *multip_pranges* : an option under 'scale_p' method for user to decide whether there are at most 9 colors in the legend for the ranges of p value.
+- *multip_pranges* : an option under 'scale_p' method for user to decide whether there are at most 9 colors in the legend for the ranges of p value, or at most 4 colors. 
+
+- *mask_width* : a numeric value to specify the width of mask contour. The default is 1.5.
 
 **Example**
 
@@ -316,29 +324,28 @@ fmri_2dvisual(pval1, list('y',23), hemody_data=NULL, mask=mask, p_threshold=0.05
 fmri_2dvisual(pval1, list('z',33), hemody_data=NULL, mask=mask, p_threshold=0.05)
 ```
 
-## Funtion "fmri_pval_comparison_2d"
+## Function "fmri_pval_comparison_2d"
 
 **Details/Parameters**
 
-The function fmri_pval_comparison_2d is used to combine the 2d plots of different view generated by different 3d p value data for comparison convenience.
-
+The function fmri_pval_comparison_2d is used to combine and compare the 2D plots for different view generated by different 3D arrays of p-values.
 Parameters in this function:
 
-- *pval_ls* : a list with each element as a 3d array of p values generated by the statistical test 
+- *pval_ls* : a list. Each element is a 3D array of p-values data
 
-- *pval_name_ls* : a list with each element as the name for the p values provided in 'pval_ls'
+- *pval_name_ls* : a list with the element as name for the p value data provided in 'pval_ls'
 
-- *axis_i_lses* : a list with 3 numeric elements for the specific locations of the three 2d planes of the brain, or it is a list of lists. Each sub-list also has 3 numeric elements. If the view from any axis does not want to be shown, just input the NULL for that element.
+- *axis_i_lses* : a list with 3 numeric elements or a list of lists.
 
-- *hemody_data* :  a parameter to have the plot with/without hemodynamic contour. The default is NULL to make the plot without hemodynamic contour, otherwise assign a 3D array of the hemodynamic data.
+- *hemody_data* : a parameter to have the plot with/without hemodynamic contour. The default is NULL to make the plot without hemodynamic contour, otherwise assign a 3D array of the hemodynamic data.
 
-- *mask* : a 3d nifti or 3d array data to show the position of the brain
+- *mask* : a 3D nifti or 3D array of data to show the shell of the brain
 
-- *p_threshold* : a numeric value that can be selected randomly below 0.05 to drop insignificant p value of no need. If "low5_percent" method is used, make 'p_threshold' as NULL. Default is 0.05.
+- *p_threshold* : NULL or a numeric value that can be selected randomly below 0.05 to drop all p-values above the threshold. If 'low5_percent' method is used, make 'p_threshold' as NULL. The default is 0.05.
 
-- *legend_show* : a logical parameter of True and False to specify whether the final plot has the legend
+- *legend_show* : a logical parameter to specify whether the final plot has legend for all the subplots or the shared legend for all the subplots. The default is TRUE.
 
-- *method* : a string that represent method to draw the plot. There are 2 options: "min_max" and "scale_p". 
+- *method* : a string that represent method to draw the plot. There are 3 options: 'min_max', 'scale_p' and 'low5_percent'.
 
 - *color_pal* : name of the color palettes provided by **RColorBrewer**. The default is "YlOrRd".
 
@@ -356,19 +363,19 @@ fmri_pval_comparison_2d(list(pval1, pval2),
                         color_pal = "YlOrRd", multi_pranges=TRUE)    
 ```
 
-## Funtion "fmri_3dvisual"
+## Function "fmri_3dvisual"
 
 **Details/Parameters**
 
-The function fmri_3dvisual is used to visualize the 3d plot of the brain with its activated parts based on given p values.
+The function fmri_3dvisual is used to visualize the 3D plot of the brain with its activated parts based on provided p values.
 
 Parameters in this function:
 
-- *pval* : a 3d array p value that can be used to plot activated area of the brain
+- *pval* : a 3D array of p-values used to plot activated area of the brain
 
-- *mask* : a 3d nifti or 3d array data to show the position of the brain
+- *mask* : a 3D nifti or 3D array of data to show the shell of the brain
 
-- *p_threshold* : a numeric value that can be selected randomly below 0.05 to drop insignificant p value of no need. If "low5_percent" method is used, make 'p_threshold' as NULL. Default is 0.05.
+- *p_threshold* : NULL or a numeric value that can be selected randomly below 0.05 to drop all p-values above the threshold. If 'low5_percent' method is used, make 'p_threshold' as NULL. The default is 0.05.
 
 - *method* : a string that represent method to draw the plot. There are 2 options: "scale_p" and "low5_percent". 
 
@@ -376,31 +383,33 @@ Parameters in this function:
 
 - *multip_pranges* : an option under 'scale_p' method for user to decide whether there are at most 9 colors in the legend for the ranges of p value
 
+- *title* : the title of the plot. The default is NULL.
+
 **Example**
 
 ```{r}
 fmri_3dvisual(pval1, mask, p_threshold = 0.05, method="scale_p")$plot
 ```
 
-## Funtion "fmri_pval_comparison_3d"
+## Function "fmri_pval_comparison_3d"
 
 **Details/Parameters**
 
-The function fmri_pval_comparison_3d is used to visualize and compare the 3d plot of the activated parts in the brain in one brain shell.
+The function fmri_pval_comparison_3d is used to visualize and compare the 3D plot of the activated parts in one brain shell.
 
 Parameters in this function:
 
-- *pval_3d_ls* : a list of two element, each element is a 3d array p value that can be used to plot activated area of the brain
+- *pval_3d_ls* : a list of two element, each element is a 3D array of p-values used to plot activated area of the brain
 
-- *mask* : a 3d nifti or 3d array data to show the position of the brain
+- *mask* : a 3D nifti or 3D array of data to show the shell of the brain
 
-- *p_threshold* :  list of two element, each element is NULL or a numeric value that can be selected randomly below 0.05 to drop insignificant p value of no need
+- *p_threshold* : NULL or a numeric value that can be selected randomly below 0.05 to drop insignificant p-values of no need or drop no p-values. If 'low5_percent' method is used, make 'p_threshold' as NULL. The default is 0.05.
 
-- *method_ls* :a list of two element, each element is a string that represent method to draw the plot. There are 3 options: "scale_p" and "low5_percent". 
+- *method_ls* : a string that represents method for the plot. There are 2 options: 'scale_p' and 'low5_percent'.
 
 - *color_pal_ls* : the name of the color palettes provided by **RColorBrewer**. The default is list("YlOrRd", "YlGnBu").
 
-- *multip_pranges* : an option under 'scale_p' method for user to decide whether there are at most 9 colors in the legend for the ranges of p value
+- *multip_pranges* : an option under 'scale_p' method for user to decide whether there are at most 9 colors in the legend for the ranges of p-values
 
 **Example**
 

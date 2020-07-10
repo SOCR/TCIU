@@ -5,7 +5,7 @@
 # @param voxel_location a 3d array indicating the spacial location of the brain.
 # @param stimulus_idx a vector that specifies when motion happens.
 # @param rest_idx a vector that specifies when study participant does not move.
-# @param test_type a string that indicates which testing method is to be used. There are 2 options: "t-test" and "wilcox-test". By default is "t-test".
+# @param test_type a string that indicates which testing method is to be used. There are 2 options: "t-test" and "wilcoxon-test". By default is "t-test".
 # @param is.4d By default is true. If change to false, need to input a vector instead of array.
 #
 # @details
@@ -71,7 +71,7 @@ fmri_p_val = function(fmridata,
          "t-test"= {
            return(t.test(group1_avg,group2_avg, 
                          alternative="greater")$p.value)},
-         "wilcox-test"= {
+         "wilcoxon-test"= {
            return( 
              wilcox.test(group1_avg, 
                          group2_avg,

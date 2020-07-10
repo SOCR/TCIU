@@ -2,7 +2,7 @@
 % Please edit documentation in R/kimesurface_transform.R
 \name{kimesurface_transform}
 \alias{kimesurface_transform}
-\title{kimesurface transform on a function with a specified set of complex value}
+\title{kimesurface transform on a function with a specified set of complex values}
 \usage{
 kimesurface_transform(
   FUNCT,
@@ -14,15 +14,15 @@ kimesurface_transform(
 )
 }
 \arguments{
-\item{FUNCT}{function object f(t) to do kimesurface transform}
+\item{FUNCT}{function object f(t) to conduct kimesurface transform on}
 
-\item{glb_para}{a vector of global object that needed to be imported when using parallel computing}
+\item{glb_para}{a vector of global objections that needed to be imported when using parallel computing}
 
-\item{real_x}{a list of numeric value, which is the real part of a set of complex value}
+\item{real_x}{a list of numeric values, which is the real part of a set of complex values}
 
-\item{img_y}{a list of numeric value, which is the imaginary part of the set of complex value stated above}
+\item{img_y}{a list of numeric values, which is the imaginary part of the set of complex values stated above}
 
-\item{parallel_computing}{logical object to identify using parallel computing to speed up the function or not.
+\item{parallel_computing}{logical object to determine whether to use parallel computing to speed up the function or not.
 The default is FALSE.}
 
 \item{ncor}{number of cores for parallel computing. The default is 6.}
@@ -32,12 +32,12 @@ a 2d array that did kimesurface transform for the set of complex value (the real
 construct a 2d plane)
 }
 \description{
-a function that do the kimesurface transform on a function with a specified set of complex value
+a function applies the kimesurface transform on a function with a specified set of complex values
 }
 \details{
-This function do a kimesurface transform on a 1D function f(t), to have it converted to a 2D function. The input
-is a set of complex value with the same number of real and imaginary parts. These two parts can construct a 2D plane 
-of the same length and width. The new 2D function is based on this 2D plane. It mainly does a 
+This function applies the kimesurface transform on a 1D function f(t), to have it converted to a 2D function. The input
+is a set of complex values with the same number of real and imaginary parts. These two parts can specify a 2D plane 
+of the same length and width. The new 2D function is defined on this 2D plane. It mainly does a 
 Laplace Transform and modifies all the function values in a specific way to have them looks better in the plot.
 }
 \examples{

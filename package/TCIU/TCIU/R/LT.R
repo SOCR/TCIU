@@ -1,8 +1,8 @@
 #' @title numerical method to compute Laplace Transform 
-#' @description a function that numerically compute the Laplace Transform
+#' @description a function that numerically computes the Laplace Transform
 #' 
-#' @param FUNCT function object f(t) to do Laplace Transform
-#' @param z a complex domain value to evaluate the F(z)=LT(f)(z)
+#' @param FUNCT a function object f(t) conducting Laplace Transform
+#' @param z a complex domain value used to evaluate the F(z)=LT(f)(z)
 #' 
 #' @author SOCR team <\url{http://socr.umich.edu/people/}>
 #'
