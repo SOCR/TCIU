@@ -1,6 +1,6 @@
 # Description of TSplotly package
 
-<a href="http://www.socr.umich.edu/TCIU/"><img align="middle" src="https://github.com/SOCR/TCIU/tree/master/package/TSplotly/TS.png"></a>
+<a href="http://www.socr.umich.edu/TCIU/"><img align="middle" src="https://github.com/SOCR/TCIU/raw/master/package/TSplotly/TS.png"></a>
 
 **Time series data and ARIMA(X) model visualization by plotly [TSplotly]**
 
