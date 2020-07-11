@@ -1,7 +1,7 @@
 Package: TSplotly
 Type: Package
 Title: Create Plot_ly Plots on Time Series Dataset
-Version: 1.1.1
+Version: 1.1.2
 Authors@R: c(person("Yongkai", "Qiu",
             role = c("aut", "cre"),email = "yongkai@umich.edu"),
             person("Zhe", "Yin", role = "aut"),
@@ -10,10 +10,12 @@ Maintainer: Yongkai Qiu <yongkai@umich.edu>
 URL: http://socr.umich.edu/people/
 Description: To better visualize time-series dataset,
     TSplotly package provides an effective mechanism to utilize
-    the powerful plotly package for graphing
-    time series data. It contains 4 core functions: 
-    TSplot: create plot_ly plot on time series data or fitted
+    the powerful plotly package for graphing time-series data.
+    It contains 5 core functions: 
+    TSplot: create plot_ly plot on time-series data or fitted
     ARIMA(X) models.
+    TSplot_gen: a more general function that can work on any
+    fitted ARIMA(X) model with any time format.
     ADDline: add lines on existing TSplot objects, as needed.
     GGtoPY: create a convenient way to transform (reformat) ggplot2 
     datasets into a format that can work on plot_ly.
@@ -24,13 +26,11 @@ Imports:
     forecast,
     plotly,
     zoo,
-    ggplot2,
-    dcemriS4,
-    prettydoc
+    ggplot2
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.0
 NeedsCompilation: no
 Packaged: 2019-06-27 12:07:34 UTC; qyk02
 Author: Yongkai Qiu [aut, cre],
@@ -38,5 +38,6 @@ Author: Yongkai Qiu [aut, cre],
   Ivo Dinov [aut]
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    prettydoc
 VignetteBuilder: knitr

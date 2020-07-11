@@ -4,7 +4,9 @@
 \name{xB_fMRI_1D_x30_y30_z13}
 \alias{xB_fMRI_1D_x30_y30_z13}
 \title{xB_fMRI_1D_x30_y30_z13}
-\format{a vector contains a time series information}
+\format{
+a vector contains a time series information
+}
 \usage{
 xB_fMRI_1D_x30_y30_z13
 }

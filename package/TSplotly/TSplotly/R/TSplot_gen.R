@@ -1,7 +1,7 @@
 #' @title TSplot_gen
-#' @description Plotly method working on time series analysis. This is a more general function that can work on any
+#' @description \code{plot_ly} method working on time series analysis. This is a more general function that can work on any
 #' fitted ARIMA(X) model with any time format. Also, a list of time series data can be applied into this function
-#' so that new time lines can be directly drawn in the plot without referring to the result of ADDline function.
+#' so that new time lines can be directly drawn in the plot without referring to the result of \code{ADDline} function.
 #'
 #' @param origin_t Number of periods of original time series data you wish to include in the plot write all if all
 #' periods should be included
@@ -23,7 +23,7 @@
 #' for each time points. A list with the same shape of list in \code{ts_list} should be applied. Each element in
 #' this list should contain time labels corresponding with the list in \code{ts_list}
 #' @param ts_names Creating labels for each extra time lines you draw. Labels will appear on the legend of the plot.
-#' @param COLO Specifying colors for each new lines that is drawn.
+#' @param COLO Specifying colors for each new line that is drawn.
 #'
 #' @details
 #' The function \code{TSplot_gen} is based on package \code{plotly}. It applies \code{plot_ly} function to create
@@ -31,7 +31,7 @@
 #' If you are fitting an ARIMA model with external regressors (i.e. \code{Xreg}), then you must put inside the
 #' external regressors again.
 #'
-#' @return a plot result created by plot_ly() function
+#' @return a plot result created by \code{plot_ly} function
 #'
 #' @author SOCR team <\url{http://socr.umich.edu/people/}>
 #' @export
@@ -40,7 +40,7 @@
 #' @importFrom stats time
 #'
 #' @examples
-#' # Creating time labels
+#' # Create time labels
 #' require(zoo)
 #' require(forecast)
 #' require(plotly)
@@ -48,10 +48,12 @@
 #' tl1<-as.yearmon(time(modArima_train$x))[(length(modArima_train$x)-48+1):length(modArima_train$x)]
 #' tl2<-as.yearmon(time(forecast(modArima_train,xreg = as.matrix(X_test))$mean))
 #' tl<-as.character(c(tl1,tl2))
-#' # Creating list and other information for new lines
+#' 
+#' # Create list and other information for new lines
 #' TSlist<-list(MCSI_Data_monthAvg_ts_Y_test)
 #' TSlabel<-list(as.character(as.yearmon(time(TSlist[[1]]))))
 #' TSname<-c("Original result")
+#' 
 #' # Put them into related parameters
 #' TSplot_gen(48,modArima_train,as.matrix(X_test),title_size = 8,ts_original = "Original time series",
 #'         ts_forecast = "Predicted time series",plot_labels = tl, #labels of original plot

@@ -4,7 +4,9 @@
 \name{X_new}
 \alias{X_new}
 \title{X_new}
-\format{a matrix serving as the external regressor}
+\format{
+a matrix serving as the external regressor
+}
 \usage{
 X_new
 }

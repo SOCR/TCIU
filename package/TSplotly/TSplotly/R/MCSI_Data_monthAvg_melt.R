@@ -1,6 +1,6 @@
 #' @title MCSI_Data_monthAvg_melt
 #'
-#' @description monthly data working on example of \code{GtoP_trans}. It is a typical dataset that can work on
+#' @description monthly data working on example of \code{GGtoPY}. It is a typical dataset that can work on
 #' \code{ggplot2} but not on \code{plotly}
 #'
 #' @docType data

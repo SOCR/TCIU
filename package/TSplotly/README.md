@@ -1,6 +1,6 @@
 # Description of TSplotly package
 
-<a href="http://www.socr.umich.edu/TCIU/"><img align="middle" src="https://github.com/SOCR/TCIU/raw/master/package/TSplotly/TS_temp_page.png"></a>
+<a href="http://www.socr.umich.edu/TCIU/"><img align="middle" src="https://github.com/SOCR/TCIU/tree/master/package/TSplotly/TS.png"></a>
 
 **Time series data and ARIMA(X) model visualization by plotly [TSplotly]**
 
@@ -22,11 +22,12 @@ Overview
 ========
 
 This page is set up to store package, description and related data of an R package **TSplotly**
- TSplotly package provides an effective mechanism to utilize the powerful plotly package for graphing time series data. It contains 4 core functions: 
+ TSplotly package provides an effective mechanism to utilize the powerful plotly package for graphing time series data. It contains 5 core functions: 
     TSplot: create plot_ly plot on time series data or fitted ARIMA(X) models.
+    TSplot_gen: a general version of TSplot.
     ADDline: add lines on existing TSplot objects, as needed.
-    GGtoPY: create a convinent way to transform (reformat) ggplot2 datasets into a format that can work on Plot_ly.
-    GTSplot: create multiple plot_ly lines (timeseries) based on data frames containing multiple timeseries data
+    GGtoPY: create a convenient way to transform (reformat) ggplot2 datasets into a format that can work on Plot_ly.
+    GTSplot: create multiple plot_ly lines (time series) based on data frames containing multiple time series data
 
 Now this package is mainly used on SOCR's project: ["Time Complexity and Inferential Uncertainty (TCIU)"](http://www.socr.umich.edu/TCIU/). You could see most of the examples in the last part of Chapter 1
 
@@ -43,18 +44,19 @@ The version 1.1.0 of the CBDA package can be downloaded and installed with the f
 install.packages("TSplotly",repos = 'https://cran.r-project.org/')
 ```
 
-You could also find the installation package in this repository [here](https://github.com/SOCR/TCIU/raw/master/TSplotly/TSplotly_1.1.0.tar.gz) or in the Github page of [TCIU project](https://github.com/SOCR/TCIU). 
+You could also find the installation package in this repository [here](https://github.com/SOCR/TCIU/tree/master/package/TSplotly/TSplotly_1.1.2.tar.gz) or in the Github page of [TCIU project](https://github.com/SOCR/TCIU). 
 
-You could download to your local enviroment and using the following commands to install this package:
+You could download to your local environment and using the following commands to install this package:
 
 ```{r Installation of the CBDA package, eval = FALSE}
 # Installation from the Windows binary (recommended for Windows systems)
-install.packages("~/TSplotly_1.1.0.tar.gz", repos = NULL, type = "win.binary") 
+install.packages("~/TSplotly_1.1.2.tar.gz", repos = NULL, type = "win.binary") 
 # For windows system, you could also using these following commands:
-setwd("~/") ## Set to the working directory containing the "TSplotly_1.1.0.tar.gz" file
+setwd("~/") 
+# Set to the working directory containing the "TSplotly_1.1.2.tar.gz" file
 system("R CMD INSTALL TSplotly")
 # Installation from the source (recommended for Macs and Linux systems)
-install.packages("~/TSplotly_1.1.0.tar.gz", repos = NULL, type = "source")
+install.packages("~/TSplotly_1.1.2.tar.gz", repos = NULL, type = "source")
 ```
 
 Vignettes

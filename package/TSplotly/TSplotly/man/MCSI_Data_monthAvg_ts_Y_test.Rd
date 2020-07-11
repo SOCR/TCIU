@@ -4,7 +4,9 @@
 \name{MCSI_Data_monthAvg_ts_Y_test}
 \alias{MCSI_Data_monthAvg_ts_Y_test}
 \title{MCSI_Data_monthAvg_ts_Y_test}
-\format{a vector kind dataset created by function \code{ts()}}
+\format{
+a vector kind dataset created by function \code{ts()}
+}
 \usage{
 MCSI_Data_monthAvg_ts_Y_test
 }

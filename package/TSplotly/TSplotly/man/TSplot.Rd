@@ -4,13 +4,20 @@
 \alias{TSplot}
 \title{TSplot}
 \usage{
-TSplot(origin_t, ARIMAmodel, XREG = NULL, NEWtitle = "Result",
-  Ylab = "Value", Xlab = "Time(Month/Year)",
+TSplot(
+  origin_t,
+  ARIMAmodel,
+  XREG = NULL,
+  NEWtitle = "Result",
+  Ylab = "Value",
+  Xlab = "Time(Month/Year)",
   ts_original = "original time series",
-  ts_forecast = "forecasted time series", title_size = 10)
+  ts_forecast = "forecasted time series",
+  title_size = 10
+)
 }
 \arguments{
-\item{origin_t}{Number of periods of original time series data you wish to include in the plot
+\item{origin_t}{Number of periods of original time-series data you wish to include in the plot
 write all if all periods should be included}
 
 \item{ARIMAmodel}{ARIMA model created by function \code{auto.arima()}}
@@ -33,7 +40,7 @@ write all if all periods should be included}
 a plot result created by plot_ly() function
 }
 \description{
-Plotly method working on time series analysis. Work only for month & year dataset(i.e. dataset that can
+\code{plot_ly} method working on time-series analysis. Work only for month & year dataset (i.e. dataset that can
 satisfy the format required by function \code{as.yearmon} from package \code{zoo})
 }
 \details{
@@ -47,16 +54,16 @@ require(forecast)
 require(zoo)
 require(plotly)
 
-# Creating time series data
+# Create time-series data
 MCSI_Data_monthAvg_ts_Y <- ts(Y, start=c(1978,1), end=c(2018, 12), frequency = 12)
 
-# Applying ARIMAX model
+# Apply ARIMAX model
 modArima <- auto.arima(MCSI_Data_monthAvg_ts_Y, xreg=X)
 
-# Creating plot_ly results
-## 48 means that there will be 48 periods from the original
-## time series dataset that is included in the plot result.
-## You could also change this to "all" to see all original dataset in a single plot.
+# Create plot_ly results
+# 48 means that there will be 48 periods from the original
+# time-series dataset that is included in the plot result.
+# You could also change this to "all" to see all original dataset in a single plot.
 TSplot(48,modArima,X_new,title_size = 8,ts_original = "Original time series",
 ts_forecast = "Predicted time series")
 

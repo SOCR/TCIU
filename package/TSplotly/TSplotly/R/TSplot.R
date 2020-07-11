@@ -1,8 +1,8 @@
 #' @title TSplot
-#' @description Plotly method working on time series analysis. Work only for month & year dataset(i.e. dataset that can
+#' @description \code{plot_ly} method working on time-series analysis. Work only for month & year dataset (i.e. dataset that can
 #' satisfy the format required by function \code{as.yearmon} from package \code{zoo})
 #'
-#' @param origin_t Number of periods of original time series data you wish to include in the plot
+#' @param origin_t Number of periods of original time-series data you wish to include in the plot
 #' write all if all periods should be included
 #' @param ARIMAmodel ARIMA model created by function \code{auto.arima()}
 #' @param XREG if using ARIMAX model, put in the regularized X matrix
@@ -32,16 +32,16 @@
 #' require(zoo)
 #' require(plotly)
 #'
-#' # Creating time series data
+#' # Create time-series data
 #' MCSI_Data_monthAvg_ts_Y <- ts(Y, start=c(1978,1), end=c(2018, 12), frequency = 12)
 #'
-#' # Applying ARIMAX model
+#' # Apply ARIMAX model
 #' modArima <- auto.arima(MCSI_Data_monthAvg_ts_Y, xreg=X)
 #'
-#' # Creating plot_ly results
-#' ## 48 means that there will be 48 periods from the original
-#' ## time series dataset that is included in the plot result.
-#' ## You could also change this to "all" to see all original dataset in a single plot.
+#' # Create plot_ly results
+#' # 48 means that there will be 48 periods from the original
+#' # time-series dataset that is included in the plot result.
+#' # You could also change this to "all" to see all original dataset in a single plot.
 #' TSplot(48,modArima,X_new,title_size = 8,ts_original = "Original time series",
 #' ts_forecast = "Predicted time series")
 #'

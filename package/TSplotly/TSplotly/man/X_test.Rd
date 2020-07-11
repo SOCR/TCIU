@@ -4,7 +4,9 @@
 \name{X_test}
 \alias{X_test}
 \title{X_test}
-\format{a data frame serving as the external regressor}
+\format{
+a data frame serving as the external regressor
+}
 \usage{
 X_test
 }

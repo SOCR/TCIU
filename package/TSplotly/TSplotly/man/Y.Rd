@@ -4,7 +4,9 @@
 \name{Y}
 \alias{Y}
 \title{Y}
-\format{a vector}
+\format{
+a vector
+}
 \usage{
 Y
 }

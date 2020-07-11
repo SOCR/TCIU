@@ -1,0 +1,102 @@
+#' @title GGtoPY
+#' @description a dataset transformation method, change \code{ggplot2} dataset into dataset that can be used by \code{plot_ly}
+#'
+#' @param dataframe a data frame data that can be used on \code{ggplot2}
+#' @param NAME column that will be used on creating different lines on \code{plot_ly}
+#' @param X column that will serve as the x axis on \code{plot_ly}
+#' @param Y column that will serve as the value(y) on \code{plot_ly}
+#'
+#' @details
+#' The function \code{GGtoPY} is used to conduct a data transformation. Usually dataset working on ggplot2 is a kind of
+#' dataset that has long rows and short columns. And we may wish to create plot based on different levels for a particular column.
+#' However, this dataset won't work for \code{plot_ly} as it requires each level as a column. This method will separate
+#' different levels in a column to create a new dataset with multiple columns representing the original levels.
+#'
+#' @author SOCR team <\url{http://socr.umich.edu/people/}>
+#'
+#' @return a data frame with each column serve as a line in \code{plot_ly}
+#' @export
+#'
+#' @import plotly zoo
+#' @importFrom stats time
+#' @importFrom ggplot2 ggplot geom_line geom_point geom_smooth coord_trans xlab ylab scale_x_date theme
+#'
+#' @examples
+#' require(ggplot2)
+#' require(plotly)
+#' require(zoo)
+#' # Dataset in this example. We wish to generate plot with different lines based on variable "series"
+#' # However, this dataset now can only be used on ggplot2
+#' head(MCSI_Data_monthAvg_melt)
+#'
+#' # A ggplot2 example here:
+#' ggplot(MCSI_Data_monthAvg_melt[MCSI_Data_monthAvg_melt$series!="INCOME", ],
+#'        aes(YYYYMM, value)) +
+#'   geom_line(aes(linetype=series, colour = series), size=2) +
+#'   geom_point(aes(shape=series, colour = series), size=0.3) +
+#'   geom_smooth(aes(colour = series), se = TRUE) +
+#'   coord_trans(y="log10") +
+#'   xlab("Time (monthly)") + ylab("Index Values (log-scale)") +
+#'   scale_x_date(date_breaks = "12 month", date_labels =  "%m-%Y")  +
+#'   theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#'         text = element_text(size=20))+ theme(legend.position="top")
+#'
+#' # Change the dataset with our function
+#' PYdf<-GGtoPY(MCSI_Data_monthAvg_melt[MCSI_Data_monthAvg_melt$series!="INCOME", ],
+#' NAME="series",X="YYYYMM",Y="value")
+#' PYdf$INCOME<-NULL
+#' head(PYdf)
+#'
+#' # Log transformation
+#' PYdf<-log10(PYdf)
+#'
+#' # Generate a plot_ly result
+#' # Note that we've done a log transformation on y-axis
+#' plot_ly(type="scatter",mode="lines")%>%
+#'   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+#'   y=PYdf$ICS,name="ICS",line=list(color="powderblue"))%>%
+#'   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+#'   y=PYdf$ICC,name="ICC",line=list(color="red"))%>%
+#'   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+#'   y=PYdf$GOVT,name="GOVT",line=list(color="green"))%>%
+#'   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+#'   y=PYdf$DUR,name="DUR",line=list(color="orange"))%>%
+#'   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+#'   y=PYdf$HOM,name="HOM",line=list(color="purple"))%>%
+#'   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+#'   y=PYdf$CAR,name="CAR",line=list(color="pink"))%>%
+#'   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+#'   y=PYdf$AGE,name="AGE",line=list(color="brown"))%>%
+#'   add_lines(x=as.yearmon(rownames(PYdf)),text=rownames(PYdf),
+#'   y=PYdf$EDUC,name="EDUC",line=list(color="black"))%>%
+#'   layout(title= list(text="Time series for 8 indexes",
+#'   font=list(family = "Times New Roman",size = 16,color = "black" )),
+#'          paper_bgcolor='rgb(255,255,255)', plot_bgcolor='rgb(229,229,229)',
+#'          xaxis = list(title ="Time (monthly)",
+#'                       gridcolor = 'rgb(255,255,255)',
+#'                       showgrid = TRUE,
+#'                       showline = FALSE,
+#'                       showticklabels = TRUE,
+#'                       tickcolor = 'rgb(127,127,127)',
+#'                       ticks = 'outside',
+#'                       zeroline = FALSE),
+#'          yaxis = list(title = "Index Values (log-scale)",
+#'                       gridcolor = 'rgb(255,255,255)',
+#'                       showgrid = TRUE,
+#'                       showline = FALSE,
+#'                       showticklabels = TRUE,
+#'                       tickcolor = 'rgb(127,127,127)',
+#'                       ticks = 'outside',
+#'                       zeroline = FALSE))
+
+GGtoPY <- function(dataframe,NAME=NULL,X=NULL,Y=NULL) {
+  levelnames<-levels(dataframe[,which(colnames(dataframe)==NAME)])
+  NAmatrix<-matrix(NA,nrow =nrow(dataframe[dataframe[,which(colnames(dataframe)==NAME)]==levelnames[1],]) ,ncol = length(levelnames))
+  NAmatrix<-as.data.frame(NAmatrix)
+  colnames(NAmatrix)<-levelnames
+  rownames(NAmatrix)<-dataframe[dataframe[,which(colnames(dataframe)==NAME)]==levelnames[1],][,which(colnames(dataframe)==X)]
+  for (i in 1:length(levelnames)) {
+    NAmatrix[,i]<-dataframe[dataframe[,which(colnames(dataframe)==NAME)]==levelnames[i],][,which(colnames(dataframe)==Y)]
+  }
+  return(NAmatrix)
+}
