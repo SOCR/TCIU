@@ -18,10 +18,14 @@
 #' @examples
 #' require('AnalyzeFMRI')
 #' fmri_generate = fmri_simulate_func(dim_data = c(64, 64, 40), mask = mask)
+#' \donttest{
 #' smoothmod <- AnalyzeFMRI::GaussSmoothArray(fmri_generate$fmri_data, sigma = diag(3,3))
 #' fmri_ts_forecast(smoothmod,c(41,44,33))
+#' }
 
-fmri_ts_forecast <- function(fmridata, voxel_location, cut = 10) {
+fmri_ts_forecast = function(fmridata,
+                            voxel_location,
+                            cut = 10) {
     data = detrend(fmridata[voxel_location[1], voxel_location[2], voxel_location[3], ], bp = seq(21, 160, by = cut))
     trainData <- data[3:132]
     testData <- ts(data[133:160], start = 131, end = 158)

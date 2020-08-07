@@ -27,6 +27,7 @@
 #' @param multi_pranges an option under 'scale_p' method to decide whether there are at most 9 colors 
 #' in the legend for the ranges of p-values, or at most 4 colors. 
 #' The default is TRUE, choosing the larger number of colors for the plot.
+#' @param mask_width a numeric value to specify the width of mask contour. The default is 1.5.
 #' 
 #' @details
 #' The function \code{fmri_pval_comparison_2d} is used to combine and compare the 2D plots for different 3D arrays of p-values.
@@ -46,24 +47,32 @@
 #' dim(pval1)
 #' dim(pval2)
 #' 
+#' \donttest{
 #' fmri_pval_comparison_2d(list(pval1, pval2), 
 #'                         list('pval', 'pval2'),
 #'                         list(list(40, 26, 33), list(40, 26, 33)), 
 #'                         hemody_data = NULL, 
 #'                         mask = mask, p_threshold = 0.05, 
 #'                         legend_show = FALSE, method = 'scale_p',
-#'                         color_pal = "YlOrRd", multi_pranges=TRUE)                  
+#'                         color_pal = "YlOrRd", multi_pranges=TRUE)
+#' }                  
 #' @export
 #'
 #' @import dplyr scales RColorBrewer ggpubr
 #' @importFrom ggplot2 ggplot geom_line scale_fill_identity labs geom_contour ggtitle theme geom_tile scale_alpha scale_fill_gradient coord_fixed aes
 #' @importFrom gridExtra grid.arrange arrangeGrob
 
-fmri_pval_comparison_2d = function(pval_ls, pval_name_ls,
-                              axis_i_lses, hemody_data=NULL, 
-                              mask, p_threshold=0.05, 
-                              legend_show = TRUE, method="scale_p",
-                              color_pal = "YlOrRd", multi_pranges=TRUE){
+fmri_pval_comparison_2d = function(pval_ls,
+                                   pval_name_ls,
+                                   axis_i_lses,
+                                   hemody_data = NULL, 
+                                   mask,
+                                   p_threshold = 0.05, 
+                                   legend_show = TRUE,
+                                   method = "scale_p",
+                                   color_pal = "YlOrRd",
+                                   multi_pranges = TRUE,
+                                   mask_width = 1.5){
   
   if((class(axis_i_lses) == "list") &
      (class(axis_i_lses[[1]]) == "list")){
@@ -125,7 +134,7 @@ fmri_pval_comparison_2d = function(pval_ls, pval_name_ls,
       pl = tryCatch({
         fmri_2dvisual(pval_ls[[i]], list(axis_ele, axis_i_vec[idx]), 
                       hemody_data, mask, p_threshold, legend_show,
-                      method, color_pal, multi_pranges)},
+                      method, color_pal, multi_pranges, mask_width)},
         error = function(cond){
           message("The mistake is at the 2d plot function.")
           message(paste("The message error in 2d plot is: ", cond))
@@ -216,7 +225,6 @@ fmri_pval_comparison_2d = function(pval_ls, pval_name_ls,
     plts_total = do.call("grid.arrange", append( ing_pls_name_trueval,
                                                  list(nrow=length(pval_ls)) )) + coord_fixed()
   }
-  
   
 }
 

@@ -25,7 +25,10 @@
 #' fmri_image(fmri_generate$fmri_data, option='manually', voxel_location = c(40,22,33), time = 4)
 #' 
 
-fmri_image <- function(fmridata, option = "manually", voxel_location = NULL, time = NULL) {
+fmri_image =  function(fmridata,
+                       option = "manually",
+                       voxel_location = NULL,
+                       time = NULL) {
     if (option == "auto") {
         print("Please key in x, y, z, and time in sequence")
         x = 0

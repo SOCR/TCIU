@@ -1,14 +1,3 @@
-/* mat_vec.c
- * 
- * Basic vector and matrix functions
- * 
- * Authors: Rouben Rostamian<rostamian@umbc.edu> and Ranjan Maitra<maitra@iastate.edu>
- * Fall 1996
- * Revised January 1999
- * Revised October 2000
- * Thoroughly revised March 2005
-*/
-
 #include <stdio.h>		/* for fprintf() */
 #include <stdlib.h>		/* for malloc() */
 #include <math.h>		/* for sqrt() */
@@ -52,43 +41,6 @@ double dot_prod(int len, double *a, double *b)
 	return temp;
 }
 	
-
-void Rwrapper_generate_normal(int *n, double *mu, double *sigma, 
-	double *x)
-{
-	int i;
-	for(i=0; i<*n; ++i){
-		x[i] = generate_normal(*mu, *sigma);
-	}
-}
-
-void arp_sim(int n, double sig2, double *alpha, double *y, int p)
-{
-	int init = 100;
-	int i, j;
-	double temp = 0.0;
-	double sigma = sqrt(sig2);
-	double *z; 		MAKE_VECTOR(z, n+init);
-	double *x;		MAKE_VECTOR(x, n+init);
-	for(i=0; i< n+init; i++)		z[i] = generate_normal(0., sigma);			
-	for(i=0; i<p; i++)			x[i] = z[i];
-	for(i=p; i<n+init; i++){
-		for(j=1; j<=p; j++)		temp += alpha[j-1] * x[i-j];
-		x[i] = temp + z[i];
-		temp= 0.0;
-	}
-	for(i=0; i<n; i++)		y[i] = x[init+i];
-	FREE_VECTOR(z);
-	FREE_VECTOR(x);
-}
-
-double generate_normal(double mu, double sigma) 
-{
-	double U, V;
-	U = ((float)rand())/RAND_MAX;
-	V = ((float)rand())/RAND_MAX;
-	return(mu + sigma*sqrt(-2*log(U))*cos(2*M_PI*V));
-}
 
 int max_vec(double *vec, int n)
 // Returns the index with the largest value out of vec
@@ -248,13 +200,13 @@ void transpose(int nrow, int ncol, double **M, double **tM)
 /* Prints matrix with a specified format */
 void print_dmatrix(double **a, int rows, int cols, const char *format)
 {
-	int i, j;
-	for (i=0; i<rows; i++) {
-		for (j=0; j<cols; j++)
-			printf(format, a[i][j]);
-		putchar('\n');
-	}
-	printf("\n");
+	//int i, j;
+	//for (i=0; i<rows; i++) {
+		//for (j=0; j<cols; j++)
+			//printf(format, a[i][j]);
+		//putchar('\n');
+	//}
+	//printf("\n");
 }
 
 /* Prints vector with a spefified format */
@@ -262,9 +214,9 @@ void print_dvector(double *a, int rows, const char *format)
 {
   int i;
   for (i=0; i<rows; i++) {
-    printf(format, a[i]);
+    //printf(format, a[i]);
   }
-  printf("\n");
+  //printf("\n");
 }
 
 double quadratic(double **A,double *x,int p) 
@@ -336,14 +288,6 @@ double my_det(int size, double **mat)
 }
 
 
-/* Matrix inverse. Use posymatinv for inversion of a positive-definite 
-   matrix. 
-  
-   Author: Ranjan Maitra <maitra@iastate.edu>
-   Date:   03/07/2005
-   Uses:   LAPACK 
-*/  
-
 #include <string.h>
 
 void dgetrf_(int *Mp, int *Np, double *A, int *LDA, int *PIVOT, int *INFOp);
@@ -406,11 +350,11 @@ int matinv(int sizeA,double **A,double (*determinant))
        dimension of the workspace array, and the flag for the 
        result. On exit, A contains the inverted matrix. */
     if (INFO!=0) {
-      printf("Problem in matinv: dgetri error %d\n",INFO);
+      //printf("Problem in matinv: dgetri error %d\n",INFO);
     }
   }
   else {
-    printf("Problem in matinv: dgetrf error %d\n",INFO);
+    //printf("Problem in matinv: dgetrf error %d\n",INFO);
   }
   for (i=0; i<size; i++)		/* to call a Fortran routine from C */
     {				/* have to transform the matrix */

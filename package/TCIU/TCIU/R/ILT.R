@@ -1,7 +1,7 @@
 #' @title numerical method to compute inverse of Laplace Transform 
 #' @description a function that numerically computes the inverse of Laplace Transform
 #' 
-#' @param FUNCT function object F(z), typically a Laplace-Transform of a function f(t)
+#' @param FUNCT function object F(z), typically a Laplace Transform of a function f(t)
 #' @param t time domain value to evaluate the ILT(F)(t)
 #' @param nterms number of terms to use in the numerical inversion (odd number). The default is 31L.
 #' @param m width of the contour path in C; too small values may lead to singularities on the negative x-axis; 
@@ -64,9 +64,9 @@ ILT = function(FUNCT, t, nterms = 31L, m = 1, gamma = 0.5, fail_val = complex(0)
             {
                 dx_dphi <- 0
             }  # avoid small phi value singularities
- else {
+        else {
             dx_dphi <- (m/t) * ((sin(phi) - phi * cos(phi)) * cos(phi)/(sin(phi))^2 - phi)
-        }
+            }
         dy_dphi <- (m/t)
         return(complex(real = dx_dphi, imaginary = dy_dphi))
     }

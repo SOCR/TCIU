@@ -22,7 +22,7 @@
 #' @examples
 #' require(reshape2)
 #' require(ggplot2)
-#' 
+#' \donttest{
 #' # drop the first row and first column because of divergence on Laplace Transform
 #' x = seq(0, 2, length.out=50)[2:50]; y = seq(0, 2, length.out=50)[2:50];
 #' # do kimesurface transform on sine function
@@ -46,17 +46,20 @@
 #'        theme(legend.position="top")+
 #'        labs(title= bquote("Comparison between" ~ "f(t)=sin(t)" ~ "
 #'        and Smooth(ILT(LT(fMRI)))(t); Range [" ~ 0 ~":"~ 2*pi~"]"))
+#' }
 #' @export
 #' @importFrom reshape2 melt
 #' @importFrom stats smooth.spline
 
 
+inv_kimesurface_transform = function(time_points,
+                                     array_2d,
+                                     num_length = 20,
+                                     m = 1,
+                                     msg = TRUE){
 
-inv_kimesurface_transform = function(time_points, array_2d, num_length = 20,
-                                     m=1, msg=TRUE){
   # this function convert the modified function value back to the original one
   inv_kimesurface_fun <- function (z, array_2D) {
-    
     # convert z in C to Cartesian (x,y) coordinates
     x1 <- ceiling(Re(z))-1; # if (x1<2 || x1>dim(array_2d)[1]) x1 <- 2
     y1 <- ceiling(Im(z))-1; # if (y1<2 || y1>dim(array_2d)[2]) y1 <- 2
@@ -67,12 +70,11 @@ inv_kimesurface_transform = function(time_points, array_2d, num_length = 20,
     if(!is.na(y1)){
       if((y1 < 1) || (y1 > dim(array_2D)[2])){ y1 <- 1 }
     }
-    # Exponentiate to Invert the prior (LT) log-transform of the kimesurface magnitude
+    # exponentiate to Invert the prior (LT) log-transform of the kimesurface magnitude
     val1 = complex(length.out=1, real=Re(array_2D[x1, y1]), imaginary = Im(array_2D[x1, y1]))
     mag = exp(sqrt( Re(val1)^2+ Im(val1)^2))
     phase = atan2(Im(val1), Re(val1))
     value <- complex(real=Re(mag * exp(1i*phase)), imaginary = Im(mag * exp(1i*phase)))
-    
     return ( value )
   }
   
@@ -86,7 +88,6 @@ inv_kimesurface_transform = function(time_points, array_2d, num_length = 20,
                  t= time_points[t], nterms,
                 m, gamma, fail_val, msg)
   }
-    
 
   # interpolate f(t) to 20 samples in [0 : 2*pi]. Note that 20~2*PI^2
   tvalsn <- seq(0, pi*2, length.out = num_length)
@@ -97,4 +98,5 @@ inv_kimesurface_transform = function(time_points, array_2d, num_length = 20,
   f4 <- smooth.spline(time_points, Re(f3), spar=1)$y; # plot(f4)
   
   return(list(Smooth_Reconstruction=f4, Raw_Reconstruction=f3))
+
 }

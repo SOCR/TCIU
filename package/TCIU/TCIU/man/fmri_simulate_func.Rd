@@ -33,6 +33,7 @@ a list of four elements
   \item dur - a vector of the time period when the fMRI data receives stimulation. Notice that the length of ons 
   is equal to the length of dur, and all the time period when the data does not receive the simulations have the same 
   duration as its former 'on' time period.
+  \item on_time - a vector that specifies when motion happens.
 }
 }
 \description{

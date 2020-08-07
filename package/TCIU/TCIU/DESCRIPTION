@@ -1,5 +1,5 @@
 Package: TCIU
-Title: Spacekime Analytics, Time Complexity and Inferential Uncertainty (TCIU)
+Title: Spacekime Analytics, Time Complexity and Inferential Uncertainty
 Version: 1.0.0
 Authors@R: c(person("Yongkai", "Qiu", role = "aut", email = "yongkai@umich.edu"),
              person("Zhe", "Yin", role = "aut"),
@@ -9,23 +9,24 @@ Authors@R: c(person("Yongkai", "Qiu", role = "aut", email = "yongkai@umich.edu")
              person("Rongqian", "Zhang", role = "aut"),
              person("Yunjie", "Guo", role = c("aut", "cre"), email = "jerryguo@umich.edu"),
              person("Ivo","Dinov", role = "aut", email = "statistics@umich.edu"))
-URL: https://github.com/SOCR/TCIU, https://spacekime.org, https://tciu.predictive.space
-Description: The TCIU package provides the core functionality to transform longitudinal data to
+URL: https://github.com/SOCR/TCIU, http://spacekime.org, http://tciu.predictive.space
+BugReports: https://github.com/SOCR/TCIU/issues
+Description: Provide the core functionality to transform longitudinal data to
     complex-time (kime) data using analytic and numerical techniques, visualize the original 
     time-series and reconstructed kime-surfaces, perform model based (e.g., tensor-linear regression)
-    and model-free classification and clustering methods.The package includes 15 core functions which
-    can be separated into three groups. The first group has 4 functions: fmri_time_series, fmri_kimesurface,
-    fmri_image, fmri_ts_forecast. These functions are used to draw longitudinal data, such as fMRI time-series,
-    and forecast or transform the time-series data. The second group has 7 functions: fmri_simulate_func,
-    fmri_stimulus_detect, fmri_2&3dvisual, fmri_pval_comparison_2&3d. These methods are used to simulate
-    realistic real-valued time-series data, e.g., fMRI time-courses, detect the activated areas,
-    report the corresponding p-values, and visualize the p-values in the 3D brain space. The final group
-    had 4 functions: including the Laplace transform and kimesurface reconstructions of the fMRI data.
+    and model-free classification and clustering methods in the book Dinov, ID and Velev, MV. (2021)
+    "Data Science: Time Complexity, Inferential Uncertainty, and Spacekime Analytics", De Gruyter STEM Series,
+    ISBN 978-3-11-069780-3. <https://www.degruyter.com/view/title/576646>.
+    The package includes 18 core functions which can be separated into three groups.
+    1) draw longitudinal data, such as fMRI time-series, and forecast or transform the time-series data.
+    2) simulate real-valued time-series data, e.g., fMRI time-courses, detect the activated areas,
+    report the corresponding p-values, and visualize the p-values in the 3D brain space.
+    3) Laplace transform and kimesurface reconstructions of the fMRI data.
 Depends: R (>= 3.5.0)
 Imports: stats, ggplot2, dplyr, tidyr, RColorBrewer, fancycut, scales,
          plotly, gridExtra, ggpubr, ICSNP, AnalyzeFMRI, rrcov, geometry,
-         DT, forecast, fmri, pracma, zoo, extraDistr, 
-         spatstat, cubature, doParallel, reshape2
+         DT, forecast, fmri, pracma, zoo, extraDistr, parallel,
+         spatstat, cubature, doParallel, reshape2, MultiwayRegression
 Suggests: oro.nifti, magrittr, knitr
 License: GPL-3
 VignetteBuilder: knitr

@@ -27,7 +27,10 @@
 #' fmri_time_series(sample_voxel, voxel_location = NULL, is.4d = FALSE, ref = reference_plot)
 #' 
 
-fmri_time_series <- function(fmridata, voxel_location, is.4d = TRUE, ref = NULL) {
+fmri_time_series = function(fmridata,
+                            voxel_location,
+                            is.4d = TRUE,
+                            ref = NULL) {
     if (is.4d) {
         X = voxel_location[1]
         Y = voxel_location[2]

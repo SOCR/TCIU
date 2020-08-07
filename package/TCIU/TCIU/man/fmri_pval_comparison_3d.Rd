@@ -10,7 +10,7 @@ fmri_pval_comparison_3d(
   p_threshold,
   method_ls,
   color_pal_ls = list("YlOrRd", "YlGnBu"),
-  multi_pranges
+  multi_pranges = TRUE
 )
 }
 \arguments{

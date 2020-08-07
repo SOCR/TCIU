@@ -79,7 +79,9 @@ void est_par(int n, int q, double *u, double **X, double *gamma, double *gam0,
 		compute_LL(n, q, u, X, *gamma, *gam0, beta, r, phi, &LL_new);
 		if(LL_new - LL_old < tol) conv = 1;
 	}
-	if(iter > max_iter) Rprintf("Over max_iter - complex\n");
+	if(iter > max_iter) {
+		// Rprintf("Over max_iter - complex\n");
+	}
 	*n_iter = iter;
 }
 
@@ -219,66 +221,3 @@ void ma(int n, double *r, double *phi, double *rho, double *theta)
 	for(t=0; t<n; ++t) temp += r[t] * cos(phi[t] - *theta);
 	*rho = temp / n;
 }	
-
-
-
-
-/*void res_beta(int n, double **X, double *beta, double *r, double *phi, 
-	double *u, double gam0, double gamma)
-{
-	int i;
-	double **C;				MAKE_MATRIX(C, 1, 2);
-	double **Psi;			MAKE_MATRIX(Psi, 2, 2);
-	double **Rninv;			MAKE_MATRIX(Rninv, 1, 1); //not used
-	double *betahat;		MAKE_VECTOR(betahat, 2);
-	double *beta0;			MAKE_VECTOR(beta0, 2);
-	double *betan;			MAKE_VECTOR(betan, 2);
-	double ss0, ssn;
-	double mu0=0, mun=0;
-	for(i=0; i<2; ++i){
-		betahat[i] = beta[i];
-		mu0 += X[0][i] * betahat[i];
-		mun += X[n-1][i] * betahat[i];
-	}
-	if(mu0 < 0.0){
-		C[0][0] = X[0][0];	C[0][1] = X[0][1];
-		comp_Psi(n, 2, 0, 1, X, Rninv, 1, C, Psi);
-		matxvec(Psi, 2, 2, betahat, 2, beta0);
-		for(i=0; i<2; ++i) beta[i] = beta0[i];
-	}
-	if(mun < 0.0){
-		C[0][0] = X[n-1][0];	C[0][1] = X[n-1][1];
-		comp_Psi(n, 2, 0, 1, X, Rninv, 1, C, Psi);
-		matxvec(Psi, 2, 2, betahat, 2, betan);
-		for(i=0; i<2; ++i) beta[i] = betan[i];
-	}
-	if(mu0 < 0.0 && mun < 0.0){
-		ss0 = compute_ss(n, X, beta0, r, phi, u, gam0, gamma);
-		ssn = compute_ss(n, X, betan, r, phi, u, gam0, gamma);
-		if(ss0 < ssn) 
-			for(i=0; i<2; ++i) beta[i] = beta0[i];
-		else 
-			for(i=0; i<2; ++i) beta[i] = betan[i];
-	}
-	//Rprintf("\n");
-	FREE_MATRIX(C);			FREE_MATRIX(Psi);
-	FREE_MATRIX(Rninv);		FREE_VECTOR(betahat);
-	FREE_VECTOR(beta0);		FREE_VECTOR(betan);
-}
-
-double compute_ss(int n, double **X, double *beta, double *r, double *phi, 
-	double *u, double gam0, double gamma)
-{
-	int t;
-	double *rho;		MAKE_VECTOR(rho, n);
-	double *phi_res;	MAKE_VECTOR(phi_res, n);
-	double ss = 0;
-	matxvec(X, n, 2, beta, 2, rho);
-	for(t=0; t<n; ++t){
-		phi_res[t] = phi[t] - gam0 - 2.0 * atan(u[t]*gamma);
-		ss += r[t]*r[t] + rho[t]*rho[t] - 2.0 * rho[t]*r[t]*cos(phi_res[t]);
-	}
-	FREE_VECTOR(rho);
-	FREE_VECTOR(phi_res);
-	return ss;
-}*/

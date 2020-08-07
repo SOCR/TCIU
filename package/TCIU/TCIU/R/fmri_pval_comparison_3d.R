@@ -46,7 +46,12 @@
 #'
 #' @import plotly dplyr scales RColorBrewer fancycut geometry
 
-fmri_pval_comparison_3d = function(pval_3d_ls, mask, p_threshold, method_ls, color_pal_ls = list("YlOrRd", "YlGnBu"), multi_pranges) {
+fmri_pval_comparison_3d = function(pval_3d_ls,
+                                   mask,
+                                   p_threshold,
+                                   method_ls,
+                                   color_pal_ls = list("YlOrRd", "YlGnBu"),
+                                   multi_pranges = TRUE) {
     
     plot_comp1 = fmri_3dvisual(pval_3d_ls[[1]], mask, p_threshold[[1]], method_ls[[1]], color_pal = color_pal_ls[[1]], multi_pranges)$plot
     df_pval2 = fmri_3dvisual(pval_3d_ls[[2]], mask, p_threshold[[2]], method_ls[[2]], color_pal = color_pal_ls[[2]], multi_pranges)$pval_df

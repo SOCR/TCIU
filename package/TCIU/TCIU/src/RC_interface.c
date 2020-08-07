@@ -79,22 +79,6 @@ void copy_4d_to_1d(double ****array4, int d1, int d2, int d3, int d4, double *ar
 	}
 }
 
-void Rprint_vector(double *a, int length, const char *format)
-{
-	int i;
-	for(i=0; i<length; i++)    Rprintf(format, a[i]);
-	Rprintf("\n");
-}
-
-void Rprint_matrix(double **a, int rows, int cols, const char *format)
-{
-	int i, j;
-	for(i=0; i<rows; i++){
-		for(j=0; j<cols; j++) Rprintf(format, a[i][j]);
-		Rprintf("\n");
-	}
-	Rprintf("\n");
-}
 
 void copy_2d_to_1d_int(int **mat, int nrow, int ncol, int *vec)
 {

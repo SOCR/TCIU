@@ -8,7 +8,10 @@
 # @author SOCR team <\url{http://socr.umich.edu/people/}> 
 # @examples
 
-fmri_pval_comparison_internal = function(p_val1, p_val2, names = c("p_val1", "p_val2"), breaks = 10) {
+fmri_pval_comparison_internal = function(p_val1,
+                                         p_val2,
+                                         names = c("p_val1", "p_val2"),
+                                         breaks = 10) {
     p_val_df = data.frame(p_val1 = as.vector(p_val1), p_val2 = as.vector(p_val2))
     names(p_val_df) = names
     

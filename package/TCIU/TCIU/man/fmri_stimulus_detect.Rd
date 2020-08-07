@@ -26,7 +26,7 @@ fmri_stimulus_detect(
 
 \item{rest_idex}{a vector that specifies when study participant does not move}
 
-\item{method}{a string that indicates which testing method is to be used. There are 5 options: 'HotellingT2', 'Wilk's Lambda' and 'gLRT'(likelihood ratio test) for complex fMRI data and 't-test', 'wilcoxon-test' for real fMRI data. For 4D real-valued fMRI data, two more options: 'on_off_diff' and 'HRF' method can be applied.}
+\item{method}{a string that indicates which testing method is to be used. There are 5 options: 'HotellingT2', 'Wilks-Lambda' and 'gLRT'(likelihood ratio test) for complex fMRI data and 't-test', 'wilcoxon-test' for real fMRI data. For 4D real-valued fMRI data, two more options: 'on_off_diff' and 'HRF' method can be applied.}
 
 \item{fdr_corr}{a logical variable. True if FDR correction is to be applied}
 
@@ -54,6 +54,7 @@ stimulus_idx = fmri_generate$on_time
 ons = fmri_generate$ons
 dur = fmri_generate$dur
 
+\donttest{
 # p-values using t-test for 4d fMRI data
 p_value1 = fmri_stimulus_detect(fmridata = fmridata, mask = mask,
                                 stimulus_idx = stimulus_idx,
@@ -67,6 +68,7 @@ p_value2 = fmri_stimulus_detect(fmridata = fmridata[40,41,,], mask = mask,
                                 method = 't-test')
 dim(fmridata[40,41,,])
 dim(p_value2)
+}
 
 }
 \author{

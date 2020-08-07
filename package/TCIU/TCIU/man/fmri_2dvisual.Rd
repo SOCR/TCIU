@@ -71,8 +71,8 @@ dim(pval1)
 
 # plot the sagittal, coronal and axial view of this p value generated from the brain fMRI data
 fmri_2dvisual(pval1, list('x',40), hemody_data=NULL, mask=mask, p_threshold=0.05)
-fmri_2dvisual(pval1, list('y',23), hemody_data=NULL, mask=mask, p_threshold=0.05)
-fmri_2dvisual(pval1, list('z',33), hemody_data=NULL, mask=mask, p_threshold=0.05)
+# fmri_2dvisual(pval1, list('y',23), hemody_data=NULL, mask=mask, p_threshold=0.05)
+# fmri_2dvisual(pval1, list('z',33), hemody_data=NULL, mask=mask, p_threshold=0.05)
 
 }
 \author{

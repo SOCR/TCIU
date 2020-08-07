@@ -15,10 +15,6 @@ void copy_3d_to_1d(double ***array3, int d1, int d2, int d3, double *array1);
 void copy_4d_to_1d(double ****array4, int d1, int d2, int d3, int d4, 
 	double *array1);
 
-void Rprint_vector(double *a, int length, const char *format);
-
-void Rprint_matrix(double **a, int rows, int cols, const char *format);
-
 void copy_2d_to_1d_int(int **mat, int nrow, int ncol, int *vec);
 
 void copy_1d_to_2d_int(int *vec, int **mat, int nrow, int ncol);

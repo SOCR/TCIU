@@ -20,7 +20,8 @@
 #' @import cubature
 
 LT = function(FUNCT, z) {
-    FUNCT <- match.fun(FUNCT)  # input R-domain FUNCT should be interpreted as a function
+    FUNCT <- match.fun(FUNCT)  
+    # input R-domain FUNCT should be interpreted as a function
     # define the integrand function (complex-valued) Note that cubic numeric integration is used (Unified Cubature Integration
     # Interface), Integral limits are exact [0, Inf)
     integrand <- function(t) {

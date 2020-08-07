@@ -9,14 +9,6 @@ void outer_prod(int lena, int lenb, double *a, double *b,
 void make_identity_mat(int n, double **I_n);
 
 double dot_prod(int len, double *a, double *b);
-
-void Rwrapper_generate_normal(int *n, double *mu, double *sigma, 
-	double *x);
-
-double generate_normal(double mu, double sigma);
-
-void arp_sim(int n, double sig2, double *alpha, double *y, int p);
-
 int max_vec(double *vec, int n);
 int min(int a, int b);
 int max(int a, int b);

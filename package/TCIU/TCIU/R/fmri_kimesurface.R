@@ -28,7 +28,6 @@
 
 fmri_kimesurface <- function(fmridata, 
                              voxel_location = NULL,
-                             #rand_opt = "laplace",
                              is.4d = TRUE) {
   # randomly generate 8 phi kime-phases for each of the 10 time
   phi_8_vec <- matrix(NA, ncol=10, nrow = 8)

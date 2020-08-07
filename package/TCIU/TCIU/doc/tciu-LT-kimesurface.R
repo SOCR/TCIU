@@ -44,7 +44,7 @@ require(ggplot2)
 #  z2_grid = unlist(do.call(rbind, F_vec))
 #  
 #  # explicit form of Laplace Transform of sine
-#  laplace_sine = function(p) { 1/(p^2 + 1) } # Exact laplace transform of sin(x), continuous function
+#  laplace_sine = function(p) { 1/(p^2 + 1) } # Exact Laplace transform of sin(x), continuous function
 #  
 #  XY = expand.grid(X=x2, Y=y2)
 #  complex_xy = mapply(complex, real=XY$X,imaginary=XY$Y)
@@ -179,7 +179,7 @@ p
 #  
 #  p_fmri <- plot_ly(hoverinfo="none", showscale = FALSE) %>%
 #      add_trace(z = magnitude,
-#                surfacecolor=surf_color, colorscale=colorscale,   #Phase-based color
+#                surfacecolor=surf_color, colorscale=colorscale,   # Phase-based color
 #                type = 'surface', opacity=1, visible=T) %>%
 #      layout(title = "fMRI Kime-Surface, F=LT(fMRI) \n Height=Mag(F), Color=Phase(F)", showlegend = FALSE,
 #             scene = list(aspectmode = "manual", aspectratio = list(x=1, y=1, z=1.0) ) ) # 1:1:1 aspect ratio

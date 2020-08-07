@@ -40,7 +40,7 @@ to get the original 1D function in [0, 2*pi] or other similar periodic time rang
 \examples{
 require(reshape2)
 require(ggplot2)
-
+\donttest{
 # drop the first row and first column because of divergence on Laplace Transform
 x = seq(0, 2, length.out=50)[2:50]; y = seq(0, 2, length.out=50)[2:50];
 # do kimesurface transform on sine function
@@ -64,6 +64,7 @@ ggplot(df, aes(x = time_points, y = value, colour = variable)) +
        theme(legend.position="top")+
        labs(title= bquote("Comparison between" ~ "f(t)=sin(t)" ~ "
        and Smooth(ILT(LT(fMRI)))(t); Range [" ~ 0 ~":"~ 2*pi~"]"))
+}
 }
 \author{
 SOCR team <\url{http://socr.umich.edu/people/}>

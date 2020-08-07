@@ -15,7 +15,7 @@ ILT(
 )
 }
 \arguments{
-\item{FUNCT}{function object F(z), typically a Laplace-Transform of a function f(t)}
+\item{FUNCT}{function object F(z), typically a Laplace Transform of a function f(t)}
 
 \item{t}{time domain value to evaluate the ILT(F)(t)}
 

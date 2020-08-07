@@ -25,8 +25,10 @@ The function \code{fmri_ts_forecast} is used to forecast with time series. It wi
 \examples{
 require('AnalyzeFMRI')
 fmri_generate = fmri_simulate_func(dim_data = c(64, 64, 40), mask = mask)
+\donttest{
 smoothmod <- AnalyzeFMRI::GaussSmoothArray(fmri_generate$fmri_data, sigma = diag(3,3))
 fmri_ts_forecast(smoothmod,c(41,44,33))
+}
 }
 \author{
 SOCR team <\url{http://socr.umich.edu/people/}>

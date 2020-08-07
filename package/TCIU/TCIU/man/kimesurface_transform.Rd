@@ -44,11 +44,14 @@ Laplace Transform and modifies all the function values in a specific way to have
 # drop the first row and first column because of divergence on Laplace Transform
 # do kimesurface transform on sine function
 x = seq(0, 2, length.out=50)[2:50]; y = seq(0, 2, length.out=50)[2:50];
+
+\dontrun{
 kimesurface_transform(FUNCT = function(t) {sin(t)}, real_x = x, img_y = y);
-# parallel computing
-# in this example, our FUNCT doesn't have global variable, so we set glb_para as NULL
-# kimesurface_transform(FUNCT = function(t) {sin(t)}, glb_para = NULL,
-#                       real_x = x, img_y = y, parallel_computing = TRUE);
+# this example will use parallel computing and take about several minutes to finish
+# since our FUNCT doesn't have global variable, so we set glb_para as NULL
+kimesurface_transform(FUNCT = function(t) {sin(t)}, glb_para = NULL,
+                      real_x = x, img_y = y, parallel_computing = TRUE);
+}
                       
 }
 \author{

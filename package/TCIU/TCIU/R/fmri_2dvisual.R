@@ -43,8 +43,8 @@
 #' 
 #' # plot the sagittal, coronal and axial view of this p value generated from the brain fMRI data
 #' fmri_2dvisual(pval1, list('x',40), hemody_data=NULL, mask=mask, p_threshold=0.05)
-#' fmri_2dvisual(pval1, list('y',23), hemody_data=NULL, mask=mask, p_threshold=0.05)
-#' fmri_2dvisual(pval1, list('z',33), hemody_data=NULL, mask=mask, p_threshold=0.05)
+#' # fmri_2dvisual(pval1, list('y',23), hemody_data=NULL, mask=mask, p_threshold=0.05)
+#' # fmri_2dvisual(pval1, list('z',33), hemody_data=NULL, mask=mask, p_threshold=0.05)
 #' 
 #' @export
 #'
@@ -53,12 +53,16 @@
 #' @importFrom ggplot2 coord_fixed theme geom_contour aes ggtitle scale_fill_gradient scale_alpha geom_tile ggplot labs geom_col element_text
 
 
-fmri_2dvisual = 
-  function(pval, axis_ls, hemody_data=NULL, 
-           mask, p_threshold=0.05,
-           legend_show = TRUE, method = "scale_p",
-           color_pal = "YlOrRd", multi_pranges=TRUE,
-           mask_width=1.5){
+fmri_2dvisual = function(pval,
+                         axis_ls,
+                         hemody_data = NULL, 
+                         mask,
+                         p_threshold = 0.05,
+                         legend_show = TRUE,
+                         method = "scale_p",
+                         color_pal = "YlOrRd",
+                         multi_pranges = TRUE,
+                         mask_width = 1.5){
     
     floor_dec = function(x, level=1) round(x - 5*10^(-level-1), level)
     ceiling_dec = function(x, level=1) round(x + 5*10^(-level-1), level)
@@ -121,7 +125,7 @@ fmri_2dvisual =
        (axis_ls[[2]]>dim_i_bound) | (axis_ls[[2]]<=0)){
       stop("'The second element of axis_ls should be an integer that is not out of range.'")
     }
-    
+
     
     # based on given x|y|z, compute and manage needed data for the plot correspondingly
     switch(axis_ls[[1]],
@@ -197,12 +201,7 @@ fmri_2dvisual =
       }
     }
     
-
-    if (packageVersion("ggplot2") <= "3.2.1"){
-       contour_bin = 1
-    } else {
-       contour_bin = 2
-    }
+    contour_bin = 1
 
     # based on given method, make the integrated plot correspondingly
     if (method %in% c("scale_p", "low5_percent")){
@@ -322,10 +321,10 @@ fmri_2dvisual =
     # decide whether the final plot include the legend or not
     if(legend_show){
       return(motorinbrain + coord_fixed())
-      get_legend(motorinbrain)
+             get_legend(motorinbrain)
     }else{
       return(motorinbrain + coord_fixed() + 
-               theme(legend.position="none"))
+             theme(legend.position="none"))
     }
     
-  }
+}

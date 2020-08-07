@@ -14,7 +14,8 @@ fmri_pval_comparison_2d(
   legend_show = TRUE,
   method = "scale_p",
   color_pal = "YlOrRd",
-  multi_pranges = TRUE
+  multi_pranges = TRUE,
+  mask_width = 1.5
 )
 }
 \arguments{
@@ -51,6 +52,8 @@ when all the p-values are not significant}
 \item{multi_pranges}{an option under 'scale_p' method to decide whether there are at most 9 colors 
 in the legend for the ranges of p-values, or at most 4 colors. 
 The default is TRUE, choosing the larger number of colors for the plot.}
+
+\item{mask_width}{a numeric value to specify the width of mask contour. The default is 1.5.}
 }
 \value{
 a combination plot arranged by \code{gridExtra}
@@ -74,13 +77,15 @@ dim(mask)
 dim(pval1)
 dim(pval2)
 
+\donttest{
 fmri_pval_comparison_2d(list(pval1, pval2), 
                         list('pval', 'pval2'),
                         list(list(40, 26, 33), list(40, 26, 33)), 
                         hemody_data = NULL, 
                         mask = mask, p_threshold = 0.05, 
                         legend_show = FALSE, method = 'scale_p',
-                        color_pal = "YlOrRd", multi_pranges=TRUE)                  
+                        color_pal = "YlOrRd", multi_pranges=TRUE)
+}                  
 }
 \author{
 SOCR team <\url{http://socr.umich.edu/people/}>

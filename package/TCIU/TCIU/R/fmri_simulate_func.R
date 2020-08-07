@@ -25,6 +25,7 @@
 #'   \item dur - a vector of the time period when the fMRI data receives stimulation. Notice that the length of ons 
 #'   is equal to the length of dur, and all the time period when the data does not receive the simulations have the same 
 #'   duration as its former 'on' time period.
+#'   \item on_time - a vector that specifies when motion happens.
 #' }
 #' @export
 #'
@@ -38,8 +39,10 @@
 #'                                    dur = c(10, 10, 10, 10, 10, 10, 10, 10))
 #' 
 
-fmri_simulate_func = function(dim_data, mask = NULL, ons = c(1, 21, 41, 61, 81, 101, 121, 141), dur = c(10, 10, 10, 10, 10, 10, 
-    10, 10)) {
+fmri_simulate_func = function(dim_data,
+                              mask = NULL,
+                              ons = c(1, 21, 41, 61, 81, 101, 121, 141),
+                              dur = c(10, 10, 10, 10, 10, 10, 10, 10)) {
     
     dimx = dim_data[1]
     dimy = dim_data[2]

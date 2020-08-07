@@ -23,7 +23,9 @@ vignette: >
 
 # Background
 
-The Laplace Transform, L, allows us to examine the relations between the space-time and space-kime representations of longitudinal data. The Fourier transformation is a linear operator that maps complex-valued functions of real variables (e.g., space, time domains) to complex valued functions of other real variables (e.g., frequency domain). The Laplace transform is similar. However, it sends complex-valued functions of positive real variables (e.g., time) to complex-valued functions defined on complex variables (e.g., kime).
+The Laplace transform allows us to examine the relations between the space-time and space-kime representations of longitudinal data. The Fourier transformation is a linear operator that maps complex-valued functions of real variables (e.g., space, time domains) to complex valued functions of other real variables (e.g., frequency domain). The Laplace transform is similar. However, it sends complex-valued functions of positive real variables (e.g., time) to complex-valued functions defined on complex variables (e.g., kime).
+
+In this vignette, we introduce the use of inv_kimesurface_transform() and kimesurface_transform() functions in our package. We demonstrate how to do Laplace transform and kimesurface transform with our functions.
 
 
 ```{r warning=FALSE, message=FALSE}
@@ -80,7 +82,7 @@ F_vec = lapply(F, unlist)
 z2_grid = unlist(do.call(rbind, F_vec))
 
 # explicit form of Laplace Transform of sine
-laplace_sine = function(p) { 1/(p^2 + 1) } # Exact laplace transform of sin(x), continuous function
+laplace_sine = function(p) { 1/(p^2 + 1) } # Exact Laplace transform of sin(x), continuous function
 
 XY = expand.grid(X=x2, Y=y2)       
 complex_xy = mapply(complex, real=XY$X,imaginary=XY$Y)
@@ -103,7 +105,6 @@ lt_ilt_plotly
 lt_ilt_plotly = system.file("extdata", "lt_ilt_plotly.rda", package = "TCIU", mustWork=TRUE)
 get(load(lt_ilt_plotly))
 ```
-
 
 From the plot, we can easily tell that our discrete LT function generate the same 2D surface as the analytic LT function does.
 
@@ -240,7 +241,7 @@ magnitude <- (sqrt( Re(z2_grid_fmri)^2+ Im(z2_grid_fmri)^2))
 
 p_fmri <- plot_ly(hoverinfo="none", showscale = FALSE) %>%
     add_trace(z = magnitude, 
-              surfacecolor=surf_color, colorscale=colorscale,   #Phase-based color
+              surfacecolor=surf_color, colorscale=colorscale,   # Phase-based color
               type = 'surface', opacity=1, visible=T) %>%
     layout(title = "fMRI Kime-Surface, F=LT(fMRI) \n Height=Mag(F), Color=Phase(F)", showlegend = FALSE,
            scene = list(aspectmode = "manual", aspectratio = list(x=1, y=1, z=1.0) ) ) # 1:1:1 aspect ratio

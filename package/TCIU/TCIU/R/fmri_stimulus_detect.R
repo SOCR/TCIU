@@ -5,7 +5,7 @@
 #' @param mask a 3d array indicating the spatial location of the brain
 #' @param stimulus_idx a vector that specifies when motion happens 
 #' @param rest_idex a vector that specifies when study participant does not move
-#' @param method a string that indicates which testing method is to be used. There are 5 options: 'HotellingT2', 'Wilk's Lambda' and 'gLRT'(likelihood ratio test) for complex fMRI data and 't-test', 'wilcoxon-test' for real fMRI data. For 4D real-valued fMRI data, two more options: 'on_off_diff' and 'HRF' method can be applied.
+#' @param method a string that indicates which testing method is to be used. There are 5 options: 'HotellingT2', 'Wilks-Lambda' and 'gLRT'(likelihood ratio test) for complex fMRI data and 't-test', 'wilcoxon-test' for real fMRI data. For 4D real-valued fMRI data, two more options: 'on_off_diff' and 'HRF' method can be applied.
 #' @param fdr_corr a logical variable. True if FDR correction is to be applied
 #' @param spatial_cluster.thr threshold p-value to be used for spatial clustering
 #' @param spatial_cluster.size number of spatially connected voxels to be tested for spatial clustering
@@ -34,6 +34,7 @@
 #' ons = fmri_generate$ons
 #' dur = fmri_generate$dur
 #' 
+#' \donttest{
 #' # p-values using t-test for 4d fMRI data
 #' p_value1 = fmri_stimulus_detect(fmridata = fmridata, mask = mask,
 #'                                 stimulus_idx = stimulus_idx,
@@ -47,8 +48,18 @@
 #'                                 method = 't-test')
 #' dim(fmridata[40,41,,])
 #' dim(p_value2)
+#' }
 #' 
-fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest_idex = NULL, method, fdr_corr = NULL, spatial_cluster.thr = NULL, spatial_cluster.size = NULL, ons = NULL, dur = NULL) {
+fmri_stimulus_detect = function(fmridata,
+                                mask = NULL,
+                                stimulus_idx = NULL,
+                                rest_idex = NULL,
+                                method,
+                                fdr_corr = NULL,
+                                spatial_cluster.thr = NULL,
+                                spatial_cluster.size = NULL,
+                                ons = NULL,
+                                dur = NULL) {
     
     # if data is less than 4d
     if (is.null(dim(fmridata)) == TRUE) {
@@ -59,7 +70,7 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
                 p_val = 1
             }
             return(p_val)
-        } else if (typeof(fmridata) == "complex" & method %in% c("HotellingsT2", "Wilk's Lambda", "gLRT")) {
+        } else if (typeof(fmridata) == "complex" & method %in% c("HotellingsT2", "Wilks-Lambda", "gLRT")) {
             p_val = tryCatch({
                 as.numeric(fmri_complex_p_val(fmridata = fmridata, stimulus_idx = stimulus_idx, method = method, ons = ons, dur = dur)$p.value)
             }, error = function(e) {
@@ -69,7 +80,7 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
         } else {
             # wrong test method input
             if (typeof(fmridata) == "complex") {
-                stop("Invalid test type! You can only use HotellingsT2, Wilk's Lambda or gLRT for complex data!")
+                stop("Invalid test type! You can only use HotellingsT2, Wilks-Lambda or gLRT for complex data!")
             } else {
                 stop("Invalid test type! You can only use t-test or wilcoxon-test for real data!")
             }
@@ -87,7 +98,7 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
                 if (is.na(p_val) == TRUE) {
                   p_val = 1
                 }
-            } else if (typeof(fmri_mat[i, ]) == "complex" & method %in% c("HotellingsT2", "Wilk's Lambda", "gLRT")) {
+            } else if (typeof(fmri_mat[i, ]) == "complex" & method %in% c("HotellingsT2", "Wilks-Lambda", "gLRT")) {
                 p_val = tryCatch({
                   as.numeric(fmri_complex_p_val(fmridata = fmri_mat[i, ], stimulus_idx = stimulus_idx, method = method, ons = ons, dur = dur)$p.value)
                 }, error = function(e) {
@@ -96,7 +107,7 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
             } else {
                 # wrong test method input
                 if (typeof(fmridata) == "complex") {
-                  stop("Invalid test type! You can only use HotellingsT2, Wilk's Lambda or gLRT for complex data!")
+                  stop("Invalid test type! You can only use HotellingsT2, Wilks-Lambda or gLRT for complex data!")
                 } else {
                   stop("Invalid test type! You can only use t-test or wilcoxon-test for real data!")
                 }
@@ -175,8 +186,8 @@ fmri_stimulus_detect = function(fmridata, mask = NULL, stimulus_idx = NULL, rest
         
     } else {
         # if data is complex valued
-        if (!method %in% c("HotellingsT2", "Wilk's Lambda", "gLRT")) {
-            stop("Invalid test type! You can only use HotellingsT2 or Wilk's Lambda or gLRT for complex data!")
+        if (!method %in% c("HotellingsT2", "Wilks-Lambda", "gLRT")) {
+            stop("Invalid test type! You can only use HotellingsT2 or Wilks-Lambda or gLRT for complex data!")
         }
         
         for (i in 1:dim1) {

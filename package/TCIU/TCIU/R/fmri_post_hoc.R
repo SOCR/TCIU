@@ -39,8 +39,12 @@
 #'                              show_comparison = FALSE)
 
 
-fmri_post_hoc = function(p_val_3d, fdr_corr = NULL, spatial_cluster.thr = NULL, spatial_cluster.size = NULL, show_comparison = FALSE, 
-    ...) {
+fmri_post_hoc = function(p_val_3d,
+                         fdr_corr = NULL,
+                         spatial_cluster.thr = NULL,
+                         spatial_cluster.size = NULL,
+                         show_comparison = FALSE, 
+                         ...) {
     dim1 = dim(p_val_3d)[1]
     dim2 = dim(p_val_3d)[2]
     dim3 = dim(p_val_3d)[3]

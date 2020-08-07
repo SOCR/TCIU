@@ -1,102 +1,3 @@
-/* array.h
-
-   o This file defines the following macros:
-
-     MAKE_1ARRAY(a,n)       make a 1D array of length "n"
-     MAKE_2ARRAY(a,m,n)     make a 2D array of dimensions "m x n"
-     MAKE_3ARRAY(a,l,m,n)   make a 3D array of dimensions "l x m x n"
-     MAKE_4ARRAY(a,k,l,m,n) make a 4D array of dimensions "k x l x m x n"
-
-     FREE_1ARRAY(a)         free memory allocated by MAKE_1ARRAY()
-     FREE_2ARRAY(a)         free memory allocated by MAKE_2ARRAY()
-     FREE_3ARRAY(a)         free memory allocated by MAKE_3ARRAY()
-     FREE_4ARRAY(a)         free memory allocated by MAKE_4ARRAY()
-
-   o Additionally, it defines the following convenience macros as synonyms:
-
-     MAKE_VECTOR(a,n)       same as MAKE_1ARRAY(a,n)
-     FREE_VECTOR(a)         same as FREE_1ARRAY(a)
-     MAKE_MATRIX(a,m,n)     same as MAKE_2ARRAY(a,m,n)
-     FREE_MATRIX(a)         same as FREE_2ARRAY(a)
-
-   o Additionally, it declares and uses the identifiers:
-
-     ARRAY_H2RESERVED
-     ARRAY_H3RESERVED
-     ARRAY_H4RESERVED
-
-     within local blocks within the macros.  THESE IDENTIFIERS
-     ARE RESERVED.  The user should not use identifiers with this
-     names within the scope of these macros.
-
-   o vector/matrix/array elements can be of _any_ type.
-
-   o If malloc() fails during the execution of any of the MAKE_* macros:
-         . An "out of memory" message is printed to stderr.
-         . The macro's first argument is set to NULL.
-
-   o After a call to any of the FREE_*() macros, the macro's argument
-     is set to NULL.
-
-   o The FREE_*() macros can be applied to previously FREE_*()-ed
-     arrays with no ill effect.
-
-   o Note that macro arguments are evaluated more than once.
-
-   o Customization
-
-      When malloc() returns NULL, MAKE_1ARRAY prints a message on stderr
-      and the program continues.  The user can alter this behavior by
-      redefining the MAKE_1ARRAY macro.  For instance, to call exit()
-      whenever malloc() fails, the user can do:
-
-      #undef MAKE_1ARRAY
-      #define MAKE_1ARRAY(a,n) do {                                          \
-          (a) = malloc((n) * sizeof *(a));                                   \
-          if ((a)==NULL) {                                                   \
-              fprintf(stderr, "*** in file %s, function %s(), line %d: "     \
-                      "out of memory!\n",  __FILE__, __func__, __LINE__);    \
-              exit(EXIT_FAILURE);                                            \
-          }                                                                  \
-      } while (0)
-
-      Since only MAKE_1ARRAY calls malloc() explicitly, this change affects
-      the behavior of not only MAKE_1ARRAY but all other MAKE_* macros as well.
-
-
----- SAMPLE USAGE -------------
-#include "array.h"
-int main(void)
-{
-    float ***a;            // can use any other type instead of "float"
-    size_t p=3, q=4, r=5;  // will make a 3x4x5 3-D array of float
-
-    MAKE_3ARRAY(a, p, q, r);
-    if (a==NULL)
-        return EXIT_FAILURE;
-
-    a[2][0][1] = 3.14;
-    printf("%g \n", a[2][0][1]);
-    FREE_3ARRAY(a);
-    return EXIT_SUCCESS;
-}
----- END OF SAMPLE USAGE -------
-
-
-   Author: Rouben Rostamian, <rostamian@umbc.edu>
-   June 2000
-   Revised Jul 2000
-   Revised Sep 2002
-   Revised Jun 2003 - macros don't call exit anymore
-                      changed macro names to all-caps
-   Revised Aug 2003 - changed reserved names to all caps
-   Revised Dec 2003 - changed array index types to size_t (were int)
-                    - added an "out of memory" message, printed to stderr
-                    - most FREE* macros now come before MAKE* macros,
-		      for possible improved efficiency in preprocessing
-*/
-
-
 #ifndef H_ARRAY_
 #define H_ARRAY_
 
@@ -107,9 +8,7 @@ int main(void)
 
 #define MAKE_1ARRAY(a,n) do {                                                \
     (a) = malloc((n) * sizeof *(a));                                         \
-    if ((a)==NULL)                                                           \
-        fprintf(stderr, "*** in file %s, function %s(), line %d: "           \
-                "out of memory!\n",  __FILE__, __func__, __LINE__);          \
+    if ((a)==NULL) {}                                                        \
 } while (0)                                                                  
 
 #define FREE_1ARRAY(a)  do {                                                 \
