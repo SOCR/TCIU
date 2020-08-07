@@ -2,9 +2,7 @@
 % Please edit documentation in R/fmri_ROI_phase1.R
 \name{fmri_ROI_phase1}
 \alias{fmri_ROI_phase1}
-\title{p-values on region of interest(ROI) of the brain
- @description This function takes a 4 dimensional real-valued fmridata and calculates p-values for the ROIs individually to test whether the ROI is potentially activated.
-It is the first phase of a ROI 3-phase analysis and usually followed by second phase analysis \code{fmri_ROI_phase2} .}
+\title{p-values on region of interest(ROI) of the brain}
 \usage{
 fmri_ROI_phase1(
   fmridata,
@@ -32,12 +30,11 @@ fmri_ROI_phase1(
 a list of two elements
 \itemize{
   \item all_ROI - the test result for all ROIs
-  \item sign_ROI - the test result for siginificant ROIs
+  \item sign_ROI - the test result for significant ROIs
 }
 }
 \description{
-p-values on region of interest(ROI) of the brain
- @description This function takes a 4 dimensional real-valued fmridata and calculates p-values for the ROIs individually to test whether the ROI is potentially activated.
+This function takes a 4 dimensional real-valued fmridata and calculates p-values for the ROIs individually to test whether the ROI is potentially activated.
 It is the first phase of a ROI 3-phase analysis and usually followed by second phase analysis \code{fmri_ROI_phase2} .
 }
 \details{

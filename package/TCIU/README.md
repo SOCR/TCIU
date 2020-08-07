@@ -37,7 +37,7 @@ install.packages("./TCIU_1.0.0.tar.gz", repos = NULL, type = "source")
   + **fmri_stimulus_detect & fmri_post_hoc**: take in real/complex valued fMRI data, detect locations where stimulus occurs and conduct the post-hoc process
   + **fmri_2dvisual & fmri_3dvisual**: a visualization method to display 2d & 3d p-values
   + **fmri_3dvisual_label**: a visualization method to display 3d p-values region by region
-+ **fmri_pval_comparison_2d & fmri_pval_comparison_3d**: a visualization method to compare 2d & 3d p-values
+  + **fmri_pval_comparison_2d & fmri_pval_comparison_3d**: a visualization method to compare 2d & 3d p-values
   + **fmri_ROI_phase1**: calculate p-values on region of interest(ROI) of the brain
   + **fmri_ROI_phase2**: calculate tensor-on-tensor regression on region of interest(ROI) of the brain
   

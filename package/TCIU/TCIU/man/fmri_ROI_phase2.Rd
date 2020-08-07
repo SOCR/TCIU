@@ -53,8 +53,8 @@ a 3d array storing ROI-based tensor regression p-values for the 4d fMRI data
 \description{
 This function takes a 4d fMRI data and detects locations where stimulus occurs
 on each region of interest(ROI) of the brain using \code{MultiwayRegression}. This function could be used as
-an intermediate step of a three-phase analytics protocal to detect motor areas. The funtions to implement this 
-three-phase protocal in a consecutive order is \code{fmri_ROI_phase2}, \code{fmri_ROI_phase3} and \code{fmri_post_hoc} respectively.
+an intermediate step of a three-phase analytics protocol to detect motor areas. The functions to implement this 
+three-phase protocol in a consecutive order is \code{fmri_ROI_phase2}, \code{fmri_ROI_phase3} and \code{fmri_post_hoc} respectively.
 }
 \details{
 The function \code{fmri_ROI_phase2} is used to detect locations where stimulus occurs by calculating the p-values
