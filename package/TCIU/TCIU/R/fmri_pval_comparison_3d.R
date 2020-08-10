@@ -37,10 +37,10 @@
 #' # sample 3D data of mask provided by the package
 #' dim(mask)
 #' # sample 3D p value provided by the package
-#' dim(pval1)
-#' dim(pval2)
+#' dim(phase2_pval)
+#' dim(phase3_pval)
 #' 
-#' fmri_pval_comparison_3d(list(pval1, pval2), mask, 
+#' fmri_pval_comparison_3d(list(phase2_pval, phase3_pval), mask, 
 #'                         list(0.05, 0.05), list('scale_p', 'scale_p'), multi_pranges=FALSE)
 #' @export
 #'

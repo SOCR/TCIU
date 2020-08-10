@@ -18,8 +18,7 @@
 #' 
 #' @examples
 #' # sample fMRI time-series vector of a single voxel
-#' sample_voxel = system.file("extdata", "sample_voxel.rda", package = "TCIU", mustWork=TRUE)
-#' load(sample_voxel)
+#' sample_voxel = sample[[5]]
 #' fmri_kimesurface(sample_voxel, is.4d = FALSE)[[1]]
 #' fmri_kimesurface(sample_voxel, is.4d = FALSE)[[2]]
 #' fmri_kimesurface(sample_voxel, is.4d = FALSE)[[3]]

@@ -1,5 +1,5 @@
 #' @title p-values on region of interest(ROI) of the brain
-#' @description This function takes a 4 dimensional real-valued fmridata and calculates p-values for the ROIs individually to test whether the ROI is potentially activated.
+#' @description This function takes a 4 dimensional real-valued fMRI data and calculates p-values for the ROIs individually to test whether the ROI is potentially activated.
 #' It is the first phase of a ROI 3-phase analysis and usually followed by second phase analysis \code{fmri_ROI_phase2} .
 #' @param fmridata a 4d array which contains the spatial and temporal record of fmri data
 #' @param label_mask a 3D nifti or 3D array of data to indicates the corresponding indices of the ROIs

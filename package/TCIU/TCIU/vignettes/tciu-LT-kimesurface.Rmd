@@ -45,7 +45,7 @@ require(ggplot2)
 Here we first apply the discrete Laplace Transform (LT) function in our package on the sine function with the domain of $[0 : 2\pi]$ to see whether it has the same 2D surface function as the analytic form of LT of sine. The analytic form is $1/(1+z^2)$.
 
 
-```{r eval=FALSE, warning=FALSE, message=FALSE, fig.align = "center"}
+```{r eval=FALSE}
 # For this part of code, we comment it out and import the output plot already generated before to reduce time
 # But this part of code can be run successfully. If you are interested, you can try it on your computer!
 
@@ -101,9 +101,8 @@ lt_ilt_plotly
 
 ```
 
-```{r fig.align = "center", warning=FALSE, message=FALSE}
-lt_ilt_plotly = system.file("extdata", "lt_ilt_plotly.rda", package = "TCIU", mustWork=TRUE)
-get(load(lt_ilt_plotly))
+```{r fig.align="center", warning=FALSE, message=FALSE}
+sample[[1]]
 ```
 
 From the plot, we can easily tell that our discrete LT function generate the same 2D surface as the analytic LT function does.
@@ -157,8 +156,7 @@ lt_ilt_sine
 ```
 
 ```{r, fig.align = "center", warning=FALSE, message=FALSE, fig.width = 9}
-lt_ilt_sine = system.file("extdata", "lt_ilt_sine.rda", package = "TCIU", mustWork=TRUE)
-get(load(lt_ilt_sine))
+sample[[2]]
 ```
 
 
@@ -248,9 +246,8 @@ p_fmri <- plot_ly(hoverinfo="none", showscale = FALSE) %>%
 p_fmri
 ```
 
-```{r, fig.align = "center", warning=FALSE, message=FALSE, fig.width = 9}
-p_fmri = system.file("extdata", "p_fmri.rda", package = "TCIU", mustWork=TRUE)
-get(load(p_fmri))
+```{r fig.align = "center", warning=FALSE, message=FALSE, fig.width = 9}
+sample[[3]]
 ```
 
 ## Inverse Kimesurface Transform

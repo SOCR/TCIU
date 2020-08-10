@@ -67,12 +67,12 @@ and the blue contour representing the hemodynamic contour.
 # sample 3D data of mask provided by the package
 dim(mask)
 # sample 3D p value provided by the package
-dim(pval1)
+dim(phase2_pval)
 
 # plot the sagittal, coronal and axial view of this p value generated from the brain fMRI data
-fmri_2dvisual(pval1, list('x',40), hemody_data=NULL, mask=mask, p_threshold=0.05)
-# fmri_2dvisual(pval1, list('y',23), hemody_data=NULL, mask=mask, p_threshold=0.05)
-# fmri_2dvisual(pval1, list('z',33), hemody_data=NULL, mask=mask, p_threshold=0.05)
+fmri_2dvisual(phase2_pval, list('x',40), hemody_data=NULL, mask=mask, p_threshold=0.05)
+# fmri_2dvisual(phase2_pval, list('y',23), hemody_data=NULL, mask=mask, p_threshold=0.05)
+# fmri_2dvisual(phase2_pval, list('z',33), hemody_data=NULL, mask=mask, p_threshold=0.05)
 
 }
 \author{

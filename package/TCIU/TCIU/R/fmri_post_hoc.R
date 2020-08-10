@@ -22,10 +22,10 @@
 #'
 #' @examples 
 #' # sample 3D p value provided by the package
-#' dim(pval1)
-#' 
+#' dim(phase2_pval)
+#' \donttest{
 #' # do the FDR correction
-#' pval_fdr = fmri_post_hoc(pval1, 
+#' pval_fdr = fmri_post_hoc(phase2_pval, 
 #'                          fdr_corr = 'fdr',
 #'                          spatial_cluster.thr = NULL,
 #'                          spatial_cluster.size = NULL, 
@@ -37,6 +37,7 @@
 #'                              spatial_cluster.thr = 0.05,
 #'                              spatial_cluster.size = 5, 
 #'                              show_comparison = FALSE)
+#' }
 
 
 fmri_post_hoc = function(p_val_3d,

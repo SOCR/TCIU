@@ -11,6 +11,6 @@ a 3D array containing p values
 phase2_pval
 }
 \description{
-a 64*64*40 3D array containing a sample p values for second phase of three-phase ROI analysis by function fmri_ROI_phase2
+a 64*64*40 3D array containing a sample p values for the second phase of three-phase ROI analysis by function fmri_ROI_phase2
 }
 \keyword{array}

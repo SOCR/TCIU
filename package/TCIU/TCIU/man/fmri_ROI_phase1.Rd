@@ -34,7 +34,7 @@ a list of two elements
 }
 }
 \description{
-This function takes a 4 dimensional real-valued fmridata and calculates p-values for the ROIs individually to test whether the ROI is potentially activated.
+This function takes a 4 dimensional real-valued fMRI data and calculates p-values for the ROIs individually to test whether the ROI is potentially activated.
 It is the first phase of a ROI 3-phase analysis and usually followed by second phase analysis \code{fmri_ROI_phase2} .
 }
 \details{

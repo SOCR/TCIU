@@ -36,10 +36,10 @@
 #' # sample 3D data of mask provided by the package
 #' dim(mask)
 #' # sample 3D p value provided by the package
-#' dim(pval1)
+#' dim(phase2_pval)
 #' 
 #' # make the 3D plot
-#' fmri_3dvisual(pval1, mask, p_threshold = 0.05, method="scale_p")$plot
+#' fmri_3dvisual(phase2_pval, mask, p_threshold = 0.05, method="scale_p")$plot
 #' 
 #' @export
 #'

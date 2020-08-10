@@ -44,12 +44,12 @@
 #' # sample 3D data of mask provided by the package
 #' dim(mask)
 #' # sample 3D p value provided by the package
-#' dim(pval1)
-#' dim(pval2)
+#' dim(phase2_pval)
+#' dim(phase3_pval)
 #' 
 #' \donttest{
-#' fmri_pval_comparison_2d(list(pval1, pval2), 
-#'                         list('pval', 'pval2'),
+#' fmri_pval_comparison_2d(list(phase2_pval, phase3_pval), 
+#'                         list('phase2_pval', 'phase3_pval'),
 #'                         list(list(40, 26, 33), list(40, 26, 33)), 
 #'                         hemody_data = NULL, 
 #'                         mask = mask, p_threshold = 0.05, 
