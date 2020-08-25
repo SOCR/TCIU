@@ -6,7 +6,10 @@ Authors@R: c(person("Yongkai", "Qiu", role = "aut", email = "yongkai@umich.edu")
              person("Jinwen", "Cao", role = "aut"),
              person("Yupeng", "Zhang", role = "aut"),
              person("Yuyao", "Liu", role = "aut"),
-             person("Rongqian", "Zhang", role = "aut"),
+             person("Rouben", "Rostamian", role = "ctb"),
+             person("Ranjan", "Maitra", role = "ctb"),
+             person("Daniel", "Rowe", role = "ctb"),
+             person("Daniel", "Adrian", role = "ctb", comment = "gLRT method for complex-valued fMRI statistics"),
              person("Yunjie", "Guo", role = c("aut", "cre"), email = "jerryguo@umich.edu"),
              person("Ivo","Dinov", role = "aut", email = "statistics@umich.edu"))
 URL: https://github.com/SOCR/TCIU, http://spacekime.org, http://tciu.predictive.space
@@ -25,7 +28,7 @@ Description: Provide the core functionality to transform longitudinal data to
 Depends: R (>= 3.5.0)
 Imports: stats, ggplot2, dplyr, tidyr, RColorBrewer, fancycut, scales,
          plotly, gridExtra, ggpubr, ICSNP, AnalyzeFMRI, rrcov, geometry,
-         DT, forecast, fmri, pracma, zoo, extraDistr, parallel,
+         DT, forecast, fmri, pracma, zoo, extraDistr, parallel, foreach,
          spatstat, cubature, doParallel, reshape2, MultiwayRegression
 Suggests: oro.nifti, magrittr, knitr
 License: GPL-3

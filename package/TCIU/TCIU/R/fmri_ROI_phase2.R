@@ -31,7 +31,7 @@
 #' @return a 3d array storing ROI-based tensor regression p-values for the 4d fMRI data
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # sample 3D data of labeled brain atlas provided by the package
 #' # this example will use parallel computing and take about ten minutes to finish
 #' dim(mask_label)
@@ -46,10 +46,7 @@
 #' fmridata = fmri_generate$fmri_data
 #' stimulus_idx = fmri_generate$ons
 #' stimulus_dur = fmri_generate$dur
-#' p_value = fmri_ROI_phase2(fmridata = fmridata, label_mask = mask_label, label_dict = mask_dict, 
-#'                           stimulus_idx = stimulus_idx, stimulus_dur = stimulus_dur, rrr_rank = 3,
-#'                           fmri.design_order = 2, fmri.stimulus_TR = 3, method = "t_test",
-#'                           parallel_computing = TRUE, max(detectCores()-2,1))           
+#' # the function will may take a long time, see examples in demo function or vignettes       
 #' }
 #'
 #' @export

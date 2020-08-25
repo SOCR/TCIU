@@ -76,15 +76,11 @@ label_mask = mask_label
 fmri_3dvisual_region(phase1_pval, label_mask, label_index,
                      label_name, title = "phase1 p-values")
 fmri_3dvisual_region(phase1_pval, label_mask, label_index,
-                     label_name, title = "phase1 p-values", rank = "value")
-fmri_3dvisual_region(phase1_pval, label_mask, label_index,
                      label_name, 5, title = "phase1 top five p-values", rank = "value")
 
 # for 3D visualization, user needs to include empty region in the label
 label_index = c(0, label_index)
 label_name = c("empty", label_name)
-fmri_3dvisual_region(phase2_pval, label_mask, label_index,
-                     label_name, title = "phase2 p-values")
 fmri_3dvisual_region(phase2_pval, label_mask, label_index,
                      label_name, title = "phase2 p-values", rank = c(1:length(label_name)))
 fmri_3dvisual_region(list(phase2_pval,phase3_pval), label_mask, label_index,

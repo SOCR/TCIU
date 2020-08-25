@@ -12,32 +12,25 @@ Description: To better visualize time-series dataset,
     TSplotly package provides an effective mechanism to utilize
     the powerful plotly package for graphing time-series data.
     It contains 5 core functions: 
-    TSplot: create plot_ly plot on time-series data or fitted
+    TSplot(): create plot_ly plot on time-series data or fitted
     ARIMA(X) models.
-    TSplot_gen: a more general function that can work on any
+    TSplot_gen(): a more general function that can work on any
     fitted ARIMA(X) model with any time format.
-    ADDline: add lines on existing TSplot objects, as needed.
-    GGtoPY: create a convenient way to transform (reformat) ggplot2 
+    ADDline(): add lines on existing TSplot objects, as needed.
+    GGtoPY(): create a convenient way to transform (reformat) ggplot2 
     datasets into a format that can work on plot_ly.
-    GTSplot: create multiple plot_ly lines (time-series) based on 
+    GTSplot(): create multiple plot_ly lines (time-series) based on 
     data frames containing multiple time-series data.
 Depends: R (>= 3.4.0)
-Imports: 
-    forecast,
-    plotly,
-    zoo,
-    ggplot2
+Imports: forecast, plotly, zoo, ggplot2
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.0
 NeedsCompilation: no
-Packaged: 2019-06-27 12:07:34 UTC; qyk02
+Packaged: 2020-07-11 08:48:06 UTC; gyj99
 Author: Yongkai Qiu [aut, cre],
   Zhe Yin [aut],
   Ivo Dinov [aut]
-Suggests: 
-    knitr,
-    rmarkdown,
-    prettydoc
+Suggests: knitr, rmarkdown, prettydoc
 VignetteBuilder: knitr

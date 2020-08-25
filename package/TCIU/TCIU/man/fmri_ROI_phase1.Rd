@@ -45,7 +45,7 @@ For a fixed region, the function will first compute Temporal Contrast-to-noise R
 fmri_generate = fmri_simulate_func(dim_data = c(64, 64, 40), mask = mask)
 # p-values for phase 1
 \donttest{
-result  = fmri_ROI_phase1(fmri_generate$fmri_data, mask_label,
+result = fmri_ROI_phase1(fmri_generate$fmri_data, mask_label,
                           mask_dict, stimulus_idx = fmri_generate$on_time)
 }
 }

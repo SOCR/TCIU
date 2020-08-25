@@ -16,7 +16,7 @@ The version 1.0.0 package can be downloaded and installed with the following com
 install.packages("TCIU",repos = 'https://cran.r-project.org/')
 ```
 
-You could also download the [source file](https://github.com/SOCR/TCIU/raw/master/package/TCIU_1.0.0.tar.gz) to your local environment and using the following commands to install this package:
+You could also download the [source file](https://github.com/SOCR/TCIU/raw/master/package/TCIU/TCIU_1.0.0.tar.gz) to your local environment and using the following commands to install this package:
 
 ```{r Installation of the CBDA package, eval = FALSE}
 # Installation from the binary file

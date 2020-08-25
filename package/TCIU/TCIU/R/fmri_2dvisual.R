@@ -42,9 +42,9 @@
 #' dim(phase2_pval)
 #' 
 #' # plot the sagittal, coronal and axial view of this p value generated from the brain fMRI data
+#' \donttest{
 #' fmri_2dvisual(phase2_pval, list('x',40), hemody_data=NULL, mask=mask, p_threshold=0.05)
-#' # fmri_2dvisual(phase2_pval, list('y',23), hemody_data=NULL, mask=mask, p_threshold=0.05)
-#' # fmri_2dvisual(phase2_pval, list('z',33), hemody_data=NULL, mask=mask, p_threshold=0.05)
+#' }
 #' 
 #' @export
 #'

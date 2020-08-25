@@ -25,17 +25,13 @@
 #' # do kimesurface transform on sine function
 #' x = seq(0, 2, length.out=50)[2:50]; y = seq(0, 2, length.out=50)[2:50];
 #' 
-#' \dontrun{
+#' \donttest{
 #' kimesurface_transform(FUNCT = function(t) {sin(t)}, real_x = x, img_y = y);
-#' # this example will use parallel computing and take about several minutes to finish
-#' # since our FUNCT doesn't have global variable, so we set glb_para as NULL
-#' kimesurface_transform(FUNCT = function(t) {sin(t)}, glb_para = NULL,
-#'                       real_x = x, img_y = y, parallel_computing = TRUE);
 #' }
 #'                       
 #' @export
 #' 
-#' @import doParallel
+#' @import doParallel foreach
 
 
 kimesurface_transform = function(FUNCT,
