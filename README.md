@@ -39,7 +39,7 @@ demo(fmri_demo_func, package="TCIU")
 Team
 ====
 
-[SOCR Team](http://www.socr.umich.edu/people/) including [Ivo D. Dinov](http://umich.edu/~dinov), [Milen V. Velev]( http://www.socr.umich.edu/people/Milen_Velev.html), [Yongkai Qiu]( http://www.socr.umich.edu/people/Yongkai_Qiu.html), [Zhe Yin]( http://www.socr.umich.edu/people/Zhe_Yin.html), Yufei Yang, Yunjie Guo, Yupeng Zhang, Rongqian Zhang, Yuyao Liu, Zijing Li, Daxuan Deng, Yueyang Shen, and others.
+[SOCR Team](http://www.socr.umich.edu/people/) including [Ivo D. Dinov](http://umich.edu/~dinov), [Milen V. Velev]( http://www.socr.umich.edu/people/Milen_Velev.html), [Yongkai Qiu]( http://www.socr.umich.edu/people/Yongkai_Qiu.html), [Zhe Yin]( http://www.socr.umich.edu/people/Zhe_Yin.html), Yufei Yang, Yunjie Guo, Yupeng Zhang, Rongqian Zhang, Yuyao Liu, Jinwen Cao, Zijing Li, Daxuan Deng, Yueyang Shen, and others.
 
 Acknowledgments
 ===============
