@@ -33,6 +33,7 @@ The source RMarkdown code for the website is in the [website folder](https://git
 
 To interactively run of the demo code, following a [TCIU package installation](https://github.com/SOCR/TCIU/tree/master/package/TCIU), use the following command in the R console/shell:
 ```{r}
+library(TCIU)
 demo(fmri_demo_func, package="TCIU")
 ```
 
