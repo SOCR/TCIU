@@ -1,6 +1,6 @@
 Package: TCIU
 Title: Spacekime Analytics, Time Complexity and Inferential Uncertainty
-Version: 1.1.0
+Version: 1.2.0
 Authors@R: c(person("Yongkai", "Qiu", role = "aut", email = "yongkai@umich.edu"),
              person("Zhe", "Yin", role = "aut"),
              person("Jinwen", "Cao", role = "aut"),
@@ -13,7 +13,8 @@ Authors@R: c(person("Yongkai", "Qiu", role = "aut", email = "yongkai@umich.edu")
              person("Daniel", "Adrian", role = "ctb", comment = "gLRT method for complex-valued fMRI statistics"),
              person("Yunjie", "Guo", role = c("aut", "cre"), email = "jerryguo@umich.edu"),
              person("Ivo","Dinov", role = "aut", email = "statistics@umich.edu"))
-URL: https://github.com/SOCR/TCIU, https://spacekime.org, https://tciu.predictive.space
+URL: https://github.com/SOCR/TCIU, https://spacekime.org,
+        https://tciu.predictive.space
 BugReports: https://github.com/SOCR/TCIU/issues
 Description: Provide the core functionality to transform longitudinal data to
     complex-time (kime) data using analytic and numerical techniques, visualize the original 
@@ -28,9 +29,9 @@ Description: Provide the core functionality to transform longitudinal data to
     3) Laplace transform and kimesurface reconstructions of the fMRI data.
 Depends: R (>= 3.5.0)
 Imports: stats, ggplot2, dplyr, tidyr, RColorBrewer, fancycut, scales,
-         plotly, gridExtra, ggpubr, ICSNP, AnalyzeFMRI, rrcov, geometry,
-         DT, forecast, fmri, pracma, zoo, extraDistr, parallel, foreach,
-         spatstat, cubature, doParallel, reshape2, MultiwayRegression
+        plotly, gridExtra, ggpubr, ICSNP, AnalyzeFMRI, rrcov, geometry,
+        DT, forecast, fmri, pracma, zoo, extraDistr, parallel, foreach,
+        spatstat.core, spatstat.geom, cubature, doParallel, reshape2, MultiwayRegression
 Suggests: oro.nifti, magrittr, knitr, rmarkdown, webshot
 License: GPL-3
 VignetteBuilder: knitr
@@ -39,3 +40,17 @@ LazyData: true
 RoxygenNote: 7.1.0
 NeedsCompilation: yes
 SystemRequirements: GNU make
+Packaged: 2020-09-18 11:21:44 UTC; gyj99
+Author: Yongkai Qiu [aut],
+  Zhe Yin [aut],
+  Jinwen Cao [aut],
+  Yupeng Zhang [aut],
+  Yuyao Liu [aut],
+  Rongqian Zhang [aut],
+  Rouben Rostamian [ctb],
+  Ranjan Maitra [ctb],
+  Daniel Rowe [ctb],
+  Daniel Adrian [ctb] (gLRT method for complex-valued fMRI statistics),
+  Yunjie Guo [aut, cre],
+  Ivo Dinov [aut]
+Maintainer: Yunjie Guo <jerryguo@umich.edu>
