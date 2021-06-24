@@ -11,6 +11,7 @@ Table of contents
    * [Table of contents](#table-of-contents)
    * [Overview](#overview)
    * [R Code](#r-code)
+   * [Python Code](#python-code)
    * [Team](#team)
    * [Acknowledgments](#acknowledgments)
    * [References](#references)
@@ -27,7 +28,7 @@ R Code
 
 The examples, demonstrations and simulations are designed, built, implemented and validated in the [R environment](https://www.r-project.org). 
 
-The source R code for the package is in the [package folder](https://github.com/SOCR/TCIU/tree/master/package).
+The source R code for the package is in the [package (TCIU) folder](https://github.com/SOCR/TCIU/tree/master/package).
 
 The source RMarkdown code for the website is in the [website folder](https://github.com/SOCR/TCIU/tree/master/website).
 
@@ -36,6 +37,12 @@ To interactively run of the demo code, following a [TCIU package installation](h
 library("TCIU")
 demo(fmri_demo_func, package="TCIU")
 ```
+
+Python Code
+===========
+
+An early (pilot) version of a Python implementaiton of the TCIU package will be available in the [package (TCIU_python) folder](https://github.com/SOCR/TCIU/tree/master/package/TCIU_python). This is still under development and valudation ...
+
 
 Team
 ====
