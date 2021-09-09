@@ -1,0 +1,25 @@
+fmri_3dvisual_region.py: code completed but left with testing. so might have to write demo script.
+fmri_3dvisual.py: code completed, only left to be tested. Write tester scripts taking examples from other ones.
+fmri_pval_comparison_2d: plotting fucntion in the end are left followed by testing.
+fmri_pval_comparison_3d: function over,testing script left/
+fmri_pval_comparison_internal: code completed, testing script left.
+fmri_stimulus_glrt_helper: left with writing some functions that dont have an equivalent in python. They are readymade functions in R only.
+Like:fmri.stimulus,fmri.design,
+some random sanity checks and a few function imports left.
+
+fmri_visualize_helper: code completed, this functions are used in other files. So check individually when they are encountered with other files. testing to be done.
+inv_kimesurface_Transform: completed code and testing script, but not sure if what i have written is correct or not.
+
+LT.py:testing left.
+p_value_adjustment.py: added for my convenience. Can check if you want.
+
+utils.py:helper functions.
+
+rough.py: started writing the code for fmri.stimulus but didnt get there. so can start from there.
+
+*****Converting in to a web service*******
+
+Now in order to convert the docstrings(they are the triple quoted text inside a .py file.).
+I used pdoc to do it. Was exploring it and was able to generate only 1 file at a time. Need to check how would we upload the entire directory linked.
+
+Hosting can be done on pypi by creating an account on pypi.org.
