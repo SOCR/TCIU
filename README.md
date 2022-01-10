@@ -58,6 +58,8 @@ References
 ==========
 
 * Dinov, ID and Velev, MV (2021) [Data Science: Time Complexity, Inferential Uncertainty, and Spacekime Analytics](https://www.degruyter.com/view/title/576646), De Gruyter STEM Series, Berlin/Boston, ISBN 9783110697803 / 3110697807. 
+* Zhang, R, Zhang, Y, Liu, Y, Guo, Y, Shen, Y, Deng, D, Qiu, Y, Dinov, ID. (2022) [Kimesurface Representation and Tensor Linear Modeling of Longitudinal Data](https://doi.org/10.1007/s00521-021-06789-8), Neural Computing and Applications Journal, DOI: 10.1007/s00521-021-06789-8, <i>in press</i>. 
 * [TCIU Website](https://tciu.predictive.space/).
 * [Spacekime](https://Spacekime.org).
 * [TSPlotly package on CRAN](https://cran.r-project.org/web/packages/TSplotly/index.html).
+* [TCIU package on CRAN](https://cran.r-project.org/web/packages/TCIU/).
