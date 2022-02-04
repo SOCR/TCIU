@@ -47,7 +47,7 @@ An early (pilot) version of a Python implementaiton of the TCIU package will be 
 Team
 ====
 
-[SOCR Team](http://www.socr.umich.edu/people/) including [Ivo D. Dinov](http://umich.edu/~dinov), [Milen V. Velev]( http://www.socr.umich.edu/people/Milen_Velev.html), [Yongkai Qiu]( http://www.socr.umich.edu/people/Yongkai_Qiu.html), [Zhe Yin]( http://www.socr.umich.edu/people/Zhe_Yin.html), Yufei Yang, Yunjie Guo, Yupeng Zhang, Rongqian Zhang, Yuyao Liu, Jinwen Cao, Zijing Li, Daxuan Deng, Yueyang Shen, and others.
+[SOCR Team](http://www.socr.umich.edu/people/) including [Ivo D. Dinov](https://umich.edu/~dinov), [Milen V. Velev](https://www.socr.umich.edu/people/Milen_Velev.html), [Yongkai Qiu](https://www.socr.umich.edu/people/Yongkai_Qiu.html), [Zhe Yin](https://www.socr.umich.edu/people/Zhe_Yin.html), Yufei Yang, Yunjie Guo, Yupeng Zhang, Rongqian Zhang, Yuyao Liu, Jinwen Cao, Zijing Li, Daxuan Deng, [Yueyang Shen](https://www.socr.umich.edu/people/SOCR_Personnel_Yueyang.html), and others.
 
 Acknowledgments
 ===============
@@ -58,6 +58,7 @@ References
 ==========
 
 * Dinov, ID and Velev, MV (2021) [Data Science: Time Complexity, Inferential Uncertainty, and Spacekime Analytics](https://www.degruyter.com/view/title/576646), De Gruyter STEM Series, Berlin/Boston, ISBN 9783110697803 / 3110697807. 
+* Wang, Y, Shen Y, Deng, D, Dinov, ID. (2022) [Determinism, Well-posedness, and Applications of the Ultrahyperbolic Wave Equation in Spacekime](https://doi.org/10.1016/j.padiff.2022.100280), Journal of Partial Differential Equations in Applied Mathematics, DOI: [10.1016/j.padiff.2022.100280](https://doi.org/10.1016/j.padiff.2022.100280), in press. 
 * Zhang, R, Zhang, Y, Liu, Y, Guo, Y, Shen, Y, Deng, D, Qiu, Y, Dinov, ID. (2022) [Kimesurface Representation and Tensor Linear Modeling of Longitudinal Data](https://doi.org/10.1007/s00521-021-06789-8), Neural Computing and Applications Journal, DOI: 10.1007/s00521-021-06789-8, <i>in press</i>. 
 * [TCIU Website](https://tciu.predictive.space/).
 * [Spacekime](https://Spacekime.org).
