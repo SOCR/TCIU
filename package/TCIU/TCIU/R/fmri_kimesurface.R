@@ -14,7 +14,7 @@
 #'
 #' @import plotly DT scales
 #' @importFrom extraDistr rlaplace
-#' @importFrom spatstat.core blur
+#' @importFrom spatstat.explore blur
 #' @importFrom spatstat.geom as.im
 #' 
 #' @examples
@@ -90,8 +90,8 @@ fmri_kimesurface <- function(fmridata,
     }
   }
   
-  matrix_ON_smooth <- (1/10000)*as.matrix(spatstat.core::blur(spatstat.geom::as.im(matrix_ON), sigma=0.5))
-  matrix_OFF_smooth <- (1/10000)*as.matrix(spatstat.core::blur(spatstat.geom::as.im(matrix_OFF), sigma=0.5))
+  matrix_ON_smooth <- (1/10000)*as.matrix(spatstat.explore::blur(spatstat.geom::as.im(matrix_ON), sigma=0.5))
+  matrix_OFF_smooth <- (1/10000)*as.matrix(spatstat.explore::blur(spatstat.geom::as.im(matrix_OFF), sigma=0.5))
   
   hoverText <- cbind(x=1:21, y=1:21, height=as.vector(t(matrix_ON_smooth))) # tail(mytext)
   custom_txt <- matrix(NA, nrow=21, ncol=21)
